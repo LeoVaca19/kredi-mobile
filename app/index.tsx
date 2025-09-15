@@ -50,7 +50,7 @@ export default function WelcomeScreen() {
     // Simulate wallet connection
     setModalVisible(false);
     // Navigate to main app after successful connection
-    router.replace('/(tabs)/home');
+    router.replace('/home');
   };
 
   const walletOptions = [
@@ -235,7 +235,7 @@ export default function WelcomeScreen() {
                     console.log('Create new wallet');
                     setModalVisible(false);
                     // Navigate to main app after creating wallet
-                    router.replace('/(tabs)/home');
+                    router.replace('/home');
                   }}
                 >
                   <Text style={styles.createWalletButtonText}>Create New Wallet</Text>

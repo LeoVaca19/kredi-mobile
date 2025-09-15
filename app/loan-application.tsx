@@ -47,19 +47,76 @@ export default function LoanApplicationScreen() {
     setSelectedDate(formatDate(targetDate));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!loanAmount || !purpose || !selectedDate || !dataConsent || !termsAccepted) {
       Alert.alert('Error', 'Please fill all fields and accept the required terms.');
       return;
     }
 
     const daysToPayment = calculateDaysFromToday(selectedDate);
-    // Here you would submit the application
-    Alert.alert(
-      'Application Submitted',
-      `Your loan application has been submitted successfully!\nPayment deadline: ${selectedDate}\nDays to pay: ${daysToPayment} days`,
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+    
+    // Prepare loan application data
+    const loanApplicationData = {
+      amount: parseFloat(loanAmount),
+      purpose,
+      paymentDeadline: selectedDate,
+      daysToPayment,
+      dataAnalysisConsent: dataConsent,
+      termsAccepted,
+      submittedAt: new Date().toISOString(),
+    };
+
+    try {
+      // TODO: Submit data to MongoDB
+      await submitLoanApplicationToMongoDB(loanApplicationData);
+      
+      // If data consent is given, navigate to analysis loading screen
+      if (dataConsent) {
+        router.navigate('data-analysis-loading' as any);
+      } else {
+        // If no data consent, show simple success message
+        Alert.alert(
+          'Application Submitted',
+          `Your loan application has been submitted successfully!\nPayment deadline: ${selectedDate}\nDays to pay: ${daysToPayment} days`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit application. Please try again.');
+      console.error('Loan application submission error:', error);
+    }
+  };
+
+  // TODO: Implement MongoDB integration
+  const submitLoanApplicationToMongoDB = async (applicationData: any) => {
+    // TODO: Replace with actual MongoDB integration
+    /*
+    const response = await fetch('YOUR_MONGODB_API_ENDPOINT', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer YOUR_API_TOKEN',
+      },
+      body: JSON.stringify({
+        collection: 'loan_applications',
+        data: applicationData,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to submit to MongoDB');
+    }
+
+    return await response.json();
+    */
+
+    // Simulate API call for now
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('Loan application data to be saved to MongoDB:', applicationData);
+        resolve(applicationData);
+      }, 1000);
+    });
   };
 
   const handleTermsPress = () => {

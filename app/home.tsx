@@ -25,6 +25,7 @@ export default function HomeScreen() {
     router.push('/credit-score');
   };
 
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
