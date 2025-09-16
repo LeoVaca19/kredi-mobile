@@ -1,3 +1,4 @@
+import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -5,6 +6,8 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
+  Alert,
+  Clipboard,
   Dimensions,
   ImageBackground,
   Modal,
@@ -13,10 +16,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+
+// Simple Stellar address validation
+const isValidStellarAddress = (address: string): boolean => {
+  return /^G[A-Z2-7]{55}$/.test(address);
+};
 
 // Component that conditionally uses BlurView or fallback View
 const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }: {
@@ -43,22 +52,86 @@ const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }
 };
 
 export default function WelcomeScreen() {
+  const { setPublicKey: setGlobalPublicKey } = useUser();
   const [modalVisible, setModalVisible] = useState(false);
+  const [publicKey, setPublicKey] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [connectionSuccess, setConnectionSuccess] = useState(false);
 
-  const handleWalletConnect = (walletName: string) => {
-    console.log(`${walletName} selected`);
-    // Simulate wallet connection
-    setModalVisible(false);
-    // Navigate to main app after successful connection
-    router.replace('/home');
+  const handleConnect = async () => {
+    if (!publicKey.trim()) {
+      Alert.alert('Error', 'Por favor ingresa una dirección pública de Stellar');
+      return;
+    }
+
+    if (!isValidStellarAddress(publicKey.trim())) {
+      Alert.alert('Error', 'La dirección pública no es válida. Debe comenzar con "G" y tener 56 caracteres.');
+      return;
+    }
+
+    setConnecting(true);
+    
+    try {
+      // Simulate connection delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('✅ Conectado con dirección:', publicKey.trim());
+      
+      // Save to global context
+      setGlobalPublicKey(publicKey.trim());
+      
+      setConnectionSuccess(true);
+      
+      // Show success message for 2 seconds, then navigate
+      setTimeout(() => {
+        setModalVisible(false);
+        setConnectionSuccess(false);
+        
+        // Navigate to home (no need to pass params anymore)
+        router.push('/home');
+      }, 2000);
+    } catch (error) {
+      console.error('Error al conectar:', error);
+      Alert.alert('Error', 'No se pudo conectar. Intenta nuevamente.');
+    } finally {
+      setConnecting(false);
+    }
   };
 
-  const walletOptions = [
-    { name: 'Freighter', onPress: () => handleWalletConnect('Freighter') },
-    { name: 'Lobstr', onPress: () => handleWalletConnect('Lobstr') },
-    { name: 'StellarTerm', onPress: () => handleWalletConnect('StellarTerm') },
-    { name: 'WalletConnect', onPress: () => handleWalletConnect('WalletConnect') },
-  ];
+  const pasteFromClipboard = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const clipboardText = await Clipboard.getString();
+        if (clipboardText && isValidStellarAddress(clipboardText.trim())) {
+          setPublicKey(clipboardText.trim());
+          Alert.alert('Éxito', 'Dirección pública pegada desde el portapapeles');
+        } else {
+          Alert.alert('Error', 'El contenido del portapapeles no es una dirección Stellar válida');
+        }
+      } else {
+        Alert.alert(
+          'Pegar desde portapapeles', 
+          'Usa Ctrl+V para pegar tu dirección pública de Stellar en el campo de texto.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error accessing clipboard:', error);
+      Alert.alert('Error', 'No se pudo acceder al portapapeles');
+    }
+  };
+
+  const clearField = () => {
+    setPublicKey('');
+  };
+
+  const openQRScanner = () => {
+    Alert.alert(
+      'Escáner QR', 
+      'El escáner QR se implementará en una futura versión. Por ahora, puedes pegar tu dirección manualmente.',
+      [{ text: 'OK' }]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -196,50 +269,100 @@ export default function WelcomeScreen() {
               <View style={styles.modalCardContent}>
                 <Text style={styles.modalTitle}>Connect a Wallet</Text>
 
-                {/* Wallet Options Grid */}
-                <View style={styles.walletGrid}>
-                  {walletOptions.map((wallet, index) => (
+                {/* Input Section */}
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>Enter your Stellar public address</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={publicKey}
+                    onChangeText={setPublicKey}
+                    placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    placeholderTextColor="#A0A0A0"
+                    autoCorrect={false}
+                    autoCapitalize="characters"
+                    multiline={false}
+                    maxLength={56}
+                  />
+                  
+                  {/* Action Buttons */}
+                  <View style={styles.actionButtons}>
                     <Pressable
-                      key={index}
                       style={({ pressed }) => [
-                        styles.walletButton,
-                        pressed && styles.walletButtonPressed,
+                        styles.actionButton,
+                        pressed && styles.actionButtonPressed,
                       ]}
-                      onPress={() => {
-                        wallet.onPress();
-                        setModalVisible(false);
-                      }}
+                      onPress={pasteFromClipboard}
                     >
-                      <ConditionalBlurView 
-                        intensity={20} 
-                        style={styles.walletButtonBlur} 
-                        tint="light"
-                        fallbackStyle={styles.walletButtonFallback}
-                      >
-                        <Text style={styles.walletButtonText}>{wallet.name}</Text>
-                      </ConditionalBlurView>
+                      <Text style={styles.actionButtonText}>📋 Paste</Text>
                     </Pressable>
-                  ))}
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        pressed && styles.actionButtonPressed,
+                      ]}
+                      onPress={clearField}
+                    >
+                      <Text style={styles.actionButtonText}>🗑️ Clear</Text>
+                    </Pressable>
+                  </View>
                 </View>
 
                 {/* Divider */}
                 <View style={styles.divider} />
 
-                {/* Create New Wallet Button */}
+                {/* QR Scanner Option */}
                 <Pressable
                   style={({ pressed }) => [
-                    styles.createWalletButton,
-                    pressed && styles.createWalletButtonPressed,
+                    styles.qrScannerButton,
+                    pressed && styles.qrScannerButtonPressed,
                   ]}
-                  onPress={() => {
-                    console.log('Create new wallet');
-                    setModalVisible(false);
-                    // Navigate to main app after creating wallet
-                    router.replace('/home');
-                  }}
+                  onPress={openQRScanner}
                 >
-                  <Text style={styles.createWalletButtonText}>Create New Wallet</Text>
+                  <Ionicons name="qr-code-outline" size={24} color="#33312E" />
+                  <Text style={styles.qrScannerButtonText}>Scan QR Code (Coming Soon)</Text>
                 </Pressable>
+
+                {/* Another Divider */}
+                <View style={styles.divider} />
+
+                {/* Connect Button */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalConnectButton,
+                    pressed && styles.modalConnectButtonPressed,
+                    (!publicKey.trim() || connecting) && styles.modalConnectButtonDisabled,
+                  ]}
+                  onPress={handleConnect}
+                  disabled={!publicKey.trim() || connecting}
+                >
+                  <Text style={[
+                    styles.modalConnectButtonText,
+                    (!publicKey.trim() || connecting) && styles.modalConnectButtonTextDisabled,
+                  ]}>
+                    {connecting ? 'Connecting...' : 'Connect'}
+                  </Text>
+                </Pressable>
+
+                {/* Success Message */}
+                {connectionSuccess && (
+                  <View style={styles.successMessage}>
+                    <Ionicons name="checkmark-circle" size={24} color="#50E3C2" />
+                    <Text style={styles.successText}>¡Conexión exitosa!</Text>
+                    <Text style={styles.successSubtext}>Redirigiendo...</Text>
+                  </View>
+                )}
+
+                {/* Instructions */}
+                <View style={styles.instructions}>
+                  <Text style={styles.instructionsTitle}>Where to find your address:</Text>
+                  <Text style={styles.instructionsText}>
+                    • Freighter: Click the copy icon{'\n'}
+                    • LOBSTR: Settings → Account Details{'\n'}
+                    • Rabet: Account → Copy Address{'\n'}
+                    • Albedo: Your address appears on the main page
+                  </Text>
+                </View>
               </View>
             </ConditionalBlurView>
           </View>
@@ -456,64 +579,128 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  walletGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+  // New styles for input functionality
+  inputSection: {
     marginBottom: 16,
   },
-  walletButton: {
-    flex: 1,
-    minWidth: '45%',
-    height: 48,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  walletButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  walletButtonBlur: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  walletButtonFallback: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  walletButtonText: {
+  inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#33312E',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#33312E',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 12,
+    minHeight: 48,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  actionButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
+  actionButtonText: {
+    fontSize: 12,
+    color: '#33312E',
+    fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(107, 104, 100, 0.3)',
     marginVertical: 16,
   },
-  createWalletButton: {
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
+  qrScannerButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+    gap: 12,
+    marginBottom: 16,
   },
-  createWalletButtonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  qrScannerButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  createWalletButtonText: {
+  qrScannerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#33312E',
+  },
+  modalConnectButton: {
+    backgroundColor: '#4A90E2',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalConnectButtonPressed: {
+    backgroundColor: '#357ABD',
+  },
+  modalConnectButtonDisabled: {
+    backgroundColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  modalConnectButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalConnectButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  instructions: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  instructionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#33312E',
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 12,
+    color: '#6B6864',
+    lineHeight: 18,
+  },
+  successMessage: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(80, 227, 194, 0.1)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(80, 227, 194, 0.3)',
+    marginBottom: 16,
+    gap: 8,
+  },
+  successText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#33312E',
+  },
+  successSubtext: {
+    fontSize: 14,
+    color: '#6B6864',
   },
 });

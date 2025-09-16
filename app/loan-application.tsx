@@ -1,3 +1,4 @@
+import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,11 +16,19 @@ import {
 import { Calendar } from 'react-native-calendars';
 
 export default function LoanApplicationScreen() {
+  const { getUserData, isConnected } = useUser();
+  const userData = getUserData();
   const [loanAmount, setLoanAmount] = useState('');
   const [purpose, setPurpose] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [dataConsent, setDataConsent] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Redirect to index if not connected
+  if (!isConnected || !userData) {
+    router.replace('/');
+    return null;
+  }
 
   // Calculate maximum date (1 month from now)
   const today = new Date();
@@ -64,6 +73,12 @@ export default function LoanApplicationScreen() {
       dataAnalysisConsent: dataConsent,
       termsAccepted,
       submittedAt: new Date().toISOString(),
+      // Include user wallet information
+      userWallet: {
+        publicKey: userData.publicKey,
+        shortAddress: userData.shortAddress,
+        connectionDate: userData.connectionDate,
+      },
     };
 
     try {

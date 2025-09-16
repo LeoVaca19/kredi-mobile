@@ -1,7 +1,8 @@
+import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Alert,
   Clipboard,
@@ -12,8 +13,9 @@ import {
   StyleSheet,
   Text,
   View,
+  Animated,
 } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path, G, Text as SvgText, Line } from 'react-native-svg';
 
 interface LoanHistoryItem {
   id: string;
@@ -27,18 +29,27 @@ interface LoanHistoryItem {
 }
 
 export default function CreditScoreScreen() {
+  const { getUserData, isConnected } = useUser();
+  const userData = getUserData();
   const [showAllLoans, setShowAllLoans] = useState(false);
 
+  // Redirect to index if not connected
+  if (!isConnected || !userData) {
+    router.replace('/');
+    return null;
+  }
+
   const userProfile = {
-    name: 'Liam Carter',
-    walletAddress: '0x123...456',
+    name: 'Mr. Kredi',
+    walletAddress: userData.shortAddress,
+    publicKey: userData.publicKey,
     avatar: '🐐', // Goat emoji representing the avatar
   };
 
   const creditScore = {
-    score: 750,
-    rating: 'Excellent',
-    percentile: 85,
+    score: 565,
+    rating: 'Moderate',
+    percentile: 45,
   };
 
   const loanHistory: LoanHistoryItem[] = [
@@ -138,45 +149,176 @@ export default function CreditScoreScreen() {
     });
   };
 
-  // Circle progress component
-  const CircularProgress = ({ score }: { score: number }) => {
-    const radius = 80;
-    const strokeWidth = 12;
-    const normalizedRadius = radius - strokeWidth * 2;
-    const circumference = normalizedRadius * 2 * Math.PI;
-    const strokeDasharray = `${circumference} ${circumference}`;
-    const progress = (score / 850) * 100; // Assuming max score is 850
-    const strokeDashoffset = circumference - (progress / 100) * circumference;
-
-    return (
-      <View style={styles.circularProgressContainer}>
-        <Svg height={radius * 2} width={radius * 2}>
-          {/* Background circle */}
-          <Circle
-            stroke="#E5E5E5"
-            fill="transparent"
+  // Speedometer gauge component
+  const SpeedometerGauge = ({ score }: { score: number }) => {
+    const animatedValue = useRef(new Animated.Value(0)).current;
+    const [displayScore, setDisplayScore] = useState(0);
+    
+    const size = 180;
+    const strokeWidth = 20;
+    const radius = (size - strokeWidth) / 2;
+    const centerX = size / 2;
+    const centerY = size / 2;
+    
+    // Score ranges and colors (matching the reference image)
+    const ranges = [
+      { min: 300, max: 379, color: '#8B0000', label: 'Ultra Low' },      // Dark red
+      { min: 380, max: 459, color: '#DC143C', label: 'Very Low' },       // Red
+      { min: 460, max: 539, color: '#FF4500', label: 'Low' },            // Orange-red
+      { min: 540, max: 619, color: '#FF8C00', label: 'Moderate' },       // Orange
+      { min: 620, max: 699, color: '#FFD700', label: 'High' },           // Gold/Yellow
+      { min: 700, max: 779, color: '#ADFF2F', label: 'Very High' },      // Green-yellow
+      { min: 780, max: 850, color: '#32CD32', label: 'Ultra High' }      // Green
+    ];
+    
+    // Calculate angle for needle (180 degrees semicircle)
+    const minScore = 300;
+    const maxScore = 850;
+    const normalizedScore = Math.max(minScore, Math.min(maxScore, score));
+    const scorePercent = (normalizedScore - minScore) / (maxScore - minScore);
+    const needleAngle = scorePercent * 180 - 90; // -90 to start from left
+    
+    // Get current score color
+    const getCurrentRange = (currentScore: number) => {
+      return ranges.find(range => currentScore >= range.min && currentScore <= range.max) || ranges[0];
+    };
+    
+    const currentRange = getCurrentRange(normalizedScore);
+    
+    // Animation effect
+    useEffect(() => {
+      const animation = Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: false,
+      });
+      
+      const listener = animatedValue.addListener(({ value }) => {
+        const currentScore = Math.round(value * score);
+        setDisplayScore(currentScore);
+      });
+      
+      animation.start();
+      
+      return () => {
+        animatedValue.removeListener(listener);
+      };
+    }, [score]);
+    
+    // Create gauge segments
+    const createGaugeSegments = () => {
+      const segments: React.ReactElement[] = [];
+      const totalAngle = 180; // Complete semicircle
+      const segmentAngle = totalAngle / ranges.length;
+      
+      ranges.forEach((range, index) => {
+        const startAngle = -90 + (index * segmentAngle); // Start from left (-90°)
+        const endAngle = startAngle + segmentAngle;
+        
+        const startAngleRad = (startAngle * Math.PI) / 180;
+        const endAngleRad = (endAngle * Math.PI) / 180;
+        
+        const largeArcFlag = segmentAngle > 180 ? 1 : 0;
+        
+        const x1 = centerX + radius * Math.cos(startAngleRad);
+        const y1 = centerY + radius * Math.sin(startAngleRad);
+        const x2 = centerX + radius * Math.cos(endAngleRad);
+        const y2 = centerY + radius * Math.sin(endAngleRad);
+        
+        const pathData = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`;
+        
+        segments.push(
+          <Path
+            key={index}
+            d={pathData}
+            stroke={range.color}
             strokeWidth={strokeWidth}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-          {/* Progress circle */}
-          <Circle
-            stroke="#E67E22"
-            fill="transparent"
-            strokeWidth={strokeWidth}
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={strokeDashoffset}
+            fill="none"
             strokeLinecap="round"
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-            transform={`rotate(-90 ${radius} ${radius})`}
           />
+        );
+      });
+      
+      return segments;
+    };
+    
+    // Create animated needle
+    const animatedNeedleAngle = animatedValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [-90, needleAngle],
+    });
+    
+    return (
+      <View style={styles.speedometerContainer}>
+        <Svg width={size} height={size * 0.7}>
+          <G>
+            {/* Gauge segments */}
+            {createGaugeSegments()}
+            
+            {/* Score markers */}
+            {[300, 380, 460, 540, 620, 700, 780, 850].map((markerScore) => {
+              const markerPercent = (markerScore - minScore) / (maxScore - minScore);
+              const markerAngle = markerPercent * 180 - 90; // -90 to start from left
+              const markerAngleRad = (markerAngle * Math.PI) / 180;
+              
+              const innerRadius = radius - strokeWidth / 2 - 8;
+              const outerRadius = radius - strokeWidth / 2 + 8;
+              
+              const x1 = centerX + innerRadius * Math.cos(markerAngleRad);
+              const y1 = centerY + innerRadius * Math.sin(markerAngleRad);
+              const x2 = centerX + outerRadius * Math.cos(markerAngleRad);
+              const y2 = centerY + outerRadius * Math.sin(markerAngleRad);
+              
+              return (
+                <Line
+                  key={markerScore}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="#333"
+                  strokeWidth="2"
+                />
+              );
+            })}
+            
+            {/* Needle */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                left: centerX - 1,
+                top: centerY - radius + strokeWidth,
+                width: 2,
+                height: radius - strokeWidth / 2,
+                backgroundColor: '#333',
+                transformOrigin: '50% 100%',
+                transform: [
+                  {
+                    rotate: animatedNeedleAngle.interpolate({
+                      inputRange: [0, 360],
+                      outputRange: ['0deg', '360deg'],
+                    }),
+                  },
+                ],
+              }}
+            />
+            
+            {/* Center dot */}
+            <Circle
+              cx={centerX}
+              cy={centerY}
+              r="4"
+              fill="#333"
+            />
+          </G>
         </Svg>
-        <View style={styles.scoreTextContainer}>
-          <Text style={styles.scoreNumber}>{score}</Text>
-          <Text style={styles.scoreLabel}>FICO Score</Text>
+        
+        <View style={styles.scoreDisplayContainer}>
+          <Text style={styles.scoreTitle}>This wallet's Credit Score is:</Text>
+          <Text style={[styles.scoreNumber, { color: currentRange.color }]}>
+            {displayScore}
+          </Text>
+          <Text style={styles.scoreRating}>{currentRange.label}</Text>
         </View>
       </View>
     );
@@ -262,7 +404,7 @@ export default function CreditScoreScreen() {
 
           {/* Circular Progress */}
           <View style={styles.scoreContainer}>
-            <CircularProgress score={creditScore.score} />
+            <SpeedometerGauge score={creditScore.score} />
           </View>
 
           <Text style={styles.percentileText}>
@@ -418,6 +560,27 @@ const styles = StyleSheet.create({
   scoreContainer: {
     alignItems: 'center',
     marginBottom: 20,
+  },
+  speedometerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+  },
+  scoreDisplayContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  scoreTitle: {
+    fontSize: 18,
+    color: '#6B6864',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  scoreRating: {
+    fontSize: 16,
+    color: '#6B6864',
+    fontWeight: '500',
+    marginTop: 4,
   },
   circularProgressContainer: {
     position: 'relative',
