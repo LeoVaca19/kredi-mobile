@@ -1,10 +1,14 @@
+// Import polyfills first
+import '../polyfills';
+
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   ImageBackground,
   Modal,
@@ -15,6 +19,17 @@ import {
   Text,
   View,
 } from 'react-native';
+
+// Stellar Wallet imports using Lumenkit - Simple approach
+import {
+  AlbedoModule,
+  FreighterModule,
+  LobstrModule,
+  RabetModule,
+  StellarWalletsKit,
+  WalletNetwork,
+  xBullModule
+} from '@lumenkit/stellar-wallets/build';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,20 +59,145 @@ const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }
 
 export default function WelcomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [kit, setKit] = useState<StellarWalletsKit | null>(null);
 
-  const handleWalletConnect = (walletName: string) => {
-    console.log(`${walletName} selected`);
-    // Simulate wallet connection
-    setModalVisible(false);
-    // Navigate to main app after successful connection
-    router.replace('/home');
+  useEffect(() => {
+    // Initialize Stellar Wallets Kit
+    initializeKit();
+  }, []);
+
+  useEffect(() => {
+    // Check if wallet is already connected when kit is ready
+    if (kit) {
+      checkWalletConnection();
+    }
+  }, [kit]);
+
+  const initializeKit = () => {
+    try {
+      const stellarKit = new StellarWalletsKit({
+        network: WalletNetwork.TESTNET, // Change to WalletNetwork.PUBLIC for production
+        modules: [
+          new FreighterModule(),
+          new AlbedoModule(),
+          new LobstrModule(),
+          new RabetModule(),
+          new xBullModule()
+        ]
+      });
+      setKit(stellarKit);
+    } catch (error) {
+      console.error('Error initializing Stellar Wallets Kit:', error);
+    }
+  };
+
+  const checkWalletConnection = async () => {
+    try {
+      if (kit) {
+        // Check if there's already a connected wallet
+        const result = await kit.getAddress();
+        if (result && result.address) {
+          setPublicKey(result.address);
+          setConnectedWallet('connected');
+        }
+      }
+    } catch (error) {
+      console.log('No wallet connected:', error);
+    }
+  };
+
+  const handleWalletConnect = async (walletId: string) => {
+    if (!kit) return;
+    
+    setIsConnecting(true);
+    try {
+      // Set the wallet and get address
+      kit.setWallet(walletId);
+      const result = await kit.getAddress();
+      
+      if (result && result.address) {
+        setPublicKey(result.address);
+        setConnectedWallet(walletId);
+        setModalVisible(false);
+        
+        Alert.alert(
+          'Wallet Connected!', 
+          `Successfully connected ${walletId}\nPublic Key: ${result.address.substring(0, 10)}...`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => router.replace('/home'),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+      Alert.alert(
+        'Connection Failed',
+        'Failed to connect to wallet. Please make sure the wallet is installed and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleWalletModal = async () => {
+    if (!kit) return;
+    
+    try {
+      // Simply show our custom modal
+      setModalVisible(true);
+    } catch (error) {
+      console.error('Error opening wallet modal:', error);
+      // Fallback to custom modal
+      setModalVisible(true);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      if (kit) {
+        await kit.disconnect();
+      }
+      setPublicKey(null);
+      setConnectedWallet(null);
+      Alert.alert('Disconnected', 'Wallet has been disconnected successfully.');
+    } catch (error) {
+      console.error('Disconnect failed:', error);
+    }
   };
 
   const walletOptions = [
-    { name: 'Freighter', onPress: () => handleWalletConnect('Freighter') },
-    { name: 'Lobstr', onPress: () => handleWalletConnect('Lobstr') },
-    { name: 'StellarTerm', onPress: () => handleWalletConnect('StellarTerm') },
-    { name: 'WalletConnect', onPress: () => handleWalletConnect('WalletConnect') },
+    { 
+      name: 'Freighter', 
+      id: 'freighter',
+      onPress: () => handleWalletConnect('freighter') 
+    },
+    { 
+      name: 'Albedo', 
+      id: 'albedo',
+      onPress: () => handleWalletConnect('albedo') 
+    },
+    { 
+      name: 'LOBSTR', 
+      id: 'lobstr',
+      onPress: () => handleWalletConnect('lobstr') 
+    },
+    { 
+      name: 'Rabet', 
+      id: 'rabet',
+      onPress: () => handleWalletConnect('rabet') 
+    },
+    { 
+      name: 'xBull', 
+      id: 'xbull',
+      onPress: () => handleWalletConnect('xbull') 
+    },
   ];
 
   return (
@@ -111,17 +251,41 @@ export default function WelcomeScreen() {
                       styles.connectButton,
                       pressed && styles.connectButtonPressed,
                     ]}
-                    onPress={() => setModalVisible(true)}
+                    onPress={() => {
+                      if (connectedWallet) {
+                        // If already connected, go to home
+                        router.replace('/home');
+                      } else {
+                        // Use the kit modal if available, otherwise show custom modal
+                        if (kit) {
+                          handleWalletModal();
+                        } else {
+                          setModalVisible(true);
+                        }
+                      }
+                    }}
                   >
                     <LinearGradient
-                      colors={['#4A90E2', '#50E3C2']}
+                      colors={connectedWallet ? ['#4CAF50', '#45A049'] : ['#4A90E2', '#50E3C2']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.gradient}
                     >
-                      <Text style={styles.connectButtonText}>Connect Wallet</Text>
+                      <Text style={styles.connectButtonText}>
+                        {connectedWallet ? 'Continue to App' : 'Connect Wallet'}
+                      </Text>
                     </LinearGradient>
                   </Pressable>
+
+                  {/* Connection Status */}
+                  {connectedWallet && publicKey && (
+                    <View style={styles.connectionStatus}>
+                      <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                      <Text style={styles.connectionStatusText}>
+                        Connected: {publicKey.substring(0, 8)}...{publicKey.substring(-4)}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Security Features */}
                   <View style={styles.features}>
@@ -204,11 +368,14 @@ export default function WelcomeScreen() {
                       style={({ pressed }) => [
                         styles.walletButton,
                         pressed && styles.walletButtonPressed,
+                        isConnecting && styles.walletButtonDisabled,
                       ]}
                       onPress={() => {
-                        wallet.onPress();
-                        setModalVisible(false);
+                        if (!isConnecting) {
+                          wallet.onPress();
+                        }
                       }}
+                      disabled={isConnecting}
                     >
                       <ConditionalBlurView 
                         intensity={20} 
@@ -216,7 +383,15 @@ export default function WelcomeScreen() {
                         tint="light"
                         fallbackStyle={styles.walletButtonFallback}
                       >
-                        <Text style={styles.walletButtonText}>{wallet.name}</Text>
+                        <Text style={[
+                          styles.walletButtonText,
+                          isConnecting && styles.walletButtonTextDisabled
+                        ]}>
+                          {wallet.name}
+                        </Text>
+                        {isConnecting && (
+                          <Text style={styles.connectingText}>Connecting...</Text>
+                        )}
                       </ConditionalBlurView>
                     </Pressable>
                   ))}
@@ -515,5 +690,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#33312E',
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  connectionStatusText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  walletButtonDisabled: {
+    opacity: 0.6,
+  },
+  walletButtonTextDisabled: {
+    opacity: 0.6,
+  },
+  connectingText: {
+    fontSize: 10,
+    color: '#6B6864',
+    marginTop: 2,
   },
 });
