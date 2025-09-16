@@ -1,0 +1,120 @@
+﻿node.exe : 2025-09-16T11:57:33.662Z expo:telemetry Switching strategy from detached to instant
+En C:\Users\Moises\AppData\Roaming\npm\npx.ps1: 24 Carácter: 5
++     & "node$exe"  "$basedir/node_modules/npm/bin/npx-cli.js" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2025-09-16T11:5...ched to instant:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2025-09-16T11:57:33.767Z expo:telemetry Recording 1 event(s)
+2025-09-16T11:57:33.782Z expo:env Loaded environment variables from: 
+D:\Proyectos\Blockchain\kredi-mobile\.env
+2025-09-16T11:57:33.782Z expo:env D:\Proyectos\Blockchain\kredi-mobile\.env.development does not exist, 
+skipping this env file
+2025-09-16T11:57:33.782Z expo:env D:\Proyectos\Blockchain\kredi-mobile\.env.local does not exist, skipping 
+this env file
+2025-09-16T11:57:33.782Z expo:env D:\Proyectos\Blockchain\kredi-mobile\.env.development.local does not 
+exist, skipping this env file
+env: load .env
+env: export API_BASE_URL API_BASE_URL_IOS STELLAR_NETWORK SOROBAN_CONTRACT_ID HORIZON_URL SOROBAN_RPC_URL MIN_LOAN_AMOUNT MAX_LOAN_AMOUNT DEFAULT_REPAYMENT_DAYS
+Starting project at D:\Proyectos\Blockchain\kredi-mobile
+2025-09-16T11:57:34.076Z expo:prebuild-config:expo-splash-screen:ios config: {
+  image: './assets/images/kredi-icon.png',
+  imageWidth: 280,
+  resizeMode: 'contain',
+  backgroundColor: '#F0F0F0',
+  dark: {
+    backgroundColor: '#1A1A1A',
+    image: './assets/images/kredi-icon.png'
+  }
+}
+2025-09-16T11:57:34.121Z expo:prebuild-config:expo-splash-screen:ios config: {
+  image: './assets/images/kredi-icon.png',
+  imageWidth: 280,
+  resizeMode: 'contain',
+  backgroundColor: '#F0F0F0',
+  dark: {
+    backgroundColor: '#1A1A1A',
+    image: './assets/images/kredi-icon.png'
+  }
+}
+2025-09-16T11:57:34.371Z expo:start:server:devServer Stopping dev server (bundler: metro)
+2025-09-16T11:57:34.371Z expo:start:server:devServer Stopped dev server (bundler: metro)
+2025-09-16T11:57:34.753Z expo:prebuild-config:expo-splash-screen:ios config: {
+  image: './assets/images/kredi-icon.png',
+  imageWidth: 280,
+  resizeMode: 'contain',
+  backgroundColor: '#F0F0F0',
+  dark: {
+    backgroundColor: '#1A1A1A',
+    image: './assets/images/kredi-icon.png'
+  }
+}
+2025-09-16T11:57:34.919Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2025-09-16T11:57:35.601Z expo:metro:config react-native-reanimated package.json: 
+D:\Proyectos\Blockchain\kredi-mobile\node_modules\react-native-reanimated\package.json
+2025-09-16T11:57:35.604Z expo:metro:config react-native-worklets package.json: 
+D:\Proyectos\Blockchain\kredi-mobile\node_modules\react-native-worklets\package.json
+
+Expo Metro config:
+- Version: 54.0.3
+- Extensions: ts, tsx, mjs, js, jsx, json, cjs, scss, sass, css
+- React Native: D:\Proyectos\Blockchain\kredi-mobile\node_modules\react-native
+- Watch Folders: 
+- Node Module Paths: 
+- Sass: null
+- Reanimated: 4.1.0
+- Worklets: 0.5.1
+- Babel Runtime: null
+
+React Compiler enabled
+2025-09-16T11:57:35.886Z expo:metro:withMetroResolvers Appending 8 custom resolvers to Metro config. (has 
+custom resolver: false)
+2025-09-16T11:57:36.044Z expo:start:server:urlCreator URL: http://127.0.0.1:8081
+Starting Metro Bundler
+2025-09-16T11:57:36.323Z expo:prebuild-config:expo-splash-screen:ios config: {
+  image: './assets/images/kredi-icon.png',
+  imageWidth: 280,
+  resizeMode: 'contain',
+  backgroundColor: '#F0F0F0',
+  dark: {
+    backgroundColor: '#1A1A1A',
+    image: './assets/images/kredi-icon.png'
+  }
+}
+2025-09-16T11:57:36.328Z expo:start:server:middleware:serveStatic Serving static files from: 
+D:\Proyectos\Blockchain\kredi-mobile\public
+2025-09-16T11:57:36.337Z expo:start:server:devServer [tunnel] connect to port: 8081
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+2025-09-16T11:57:36.723Z expo:start:platforms:android:adbServer 
+C:\Users\Moises\AppData\Local\Android\Sdk/platform-tools/adb devices -l
+2025-09-16T11:57:36.982Z expo:start:server:ngrok Stopping Tunnel
+2025-09-16T11:57:36.983Z expo:start:server:ngrok Global config path: C:\Users\Moises\.expo\ngrok.yml
+2025-09-16T11:57:37.564Z expo:start:server:ngrok Hostname: tUIoZRU-anonymous-8081.exp.direct
+2025-09-16T11:57:37.717Z expo:start:server:ngrok Stopping Tunnel
+2025-09-16T11:57:37.717Z expo:start:server:ngrok Global config path: C:\Users\Moises\.expo\ngrok.yml
+2025-09-16T11:57:37.719Z expo:start:server:ngrok Hostname: tUIoZRU-anonymous-8081.exp.direct
+2025-09-16T11:57:37.820Z expo:start:server:ngrok Stopping Tunnel
+2025-09-16T11:57:37.820Z expo:start:server:ngrok Global config path: C:\Users\Moises\.expo\ngrok.yml
+2025-09-16T11:57:40.147Z expo:start:server:ngrok Hostname: tUIoZRU-anonymous-8081.exp.direct
+CommandError: TypeError [ERR_INVALID_ARG_TYPE]: The "file" argument must be of type string. Received null
+Check the Ngrok status page for outages: https://status.ngrok.com/
+CommandError: TypeError [ERR_INVALID_ARG_TYPE]: The "file" argument must be of type string. Received null
+Check the Ngrok status page for outages: https://status.ngrok.com/
+    at assertNgrok (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_modules\@expo\cli\src\start
+\server\AsyncNgrok.ts:197:15)
+    at AsyncNgrok.connectToNgrokInternalAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_
+modules\@expo\cli\src\start\server\AsyncNgrok.ts:206:9)
+    at AsyncNgrok._connectToNgrokAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_modules
+\@expo\cli\src\start\server\AsyncNgrok.ts:122:21)
+    at AsyncNgrok.startAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_modules\@expo\cli
+\src\start\server\AsyncNgrok.ts:92:22)
+    at MetroBundlerDevServer._startTunnelAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node
+_modules\@expo\cli\src\start\server\BundlerDevServer.ts:256:5)
+    at MetroBundlerDevServer.postStartAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_mo
+dules\@expo\cli\src\start\server\BundlerDevServer.ts:229:7)
+    at MetroBundlerDevServer.startAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_module
+s\@expo\cli\src\start\server\BundlerDevServer.ts:164:5)
+    at DevServerManager.startAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_modules\@ex
+po\cli\src\start\server\DevServerManager.ts:184:7)
+    at startAsync (D:\Proyectos\Blockchain\kredi-mobile\node_modules\expo\node_modules\@expo\cli\src\start\
+startAsync.ts:99:3)
