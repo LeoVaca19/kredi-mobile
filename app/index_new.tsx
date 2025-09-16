@@ -5,16 +5,16 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  ImageBackground,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
+    Alert,
+    Dimensions,
+    ImageBackground,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
 } from 'react-native';
 
 // LumenKit types and interfaces for React Native
@@ -142,7 +142,7 @@ class StellarWalletsKit {
   }
 }
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 // Component that conditionally uses BlurView or fallback View
 const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }: {
@@ -228,23 +228,13 @@ export default function WelcomeScreen() {
     initializeLumenKit();
   }, []);
 
-  // Debug modal state
-  useEffect(() => {
-    console.log('Modal visible state changed to:', modalVisible);
-  }, [modalVisible]);
-
   const handleWalletConnect = async (walletId: string) => {
-    console.log('handleWalletConnect called with:', walletId);
-    
     if (!stellarKit) {
-      console.log('Stellar kit not initialized');
       Alert.alert('Error', 'Wallet kit not initialized. Please try again.');
       return;
     }
 
     setIsConnecting(true);
-    console.log('Setting isConnecting to true');
-    
     try {
       const wallet = supportedWallets.find(w => w.id === walletId);
       if (!wallet) {
@@ -261,28 +251,10 @@ export default function WelcomeScreen() {
       setConnectedAddress(address);
       
       console.log('Connected to wallet:', address);
-      console.log('Setting modal visible to false');
       
       setModalVisible(false);
-      
-      // Show success message instead of auto-navigating
-      Alert.alert(
-        'Wallet Connected!', 
-        `Successfully connected to ${wallet.name}\nAddress: ${address.substring(0, 8)}...${address.substring(-8)}`,
-        [
-          {
-            text: 'Continue to App',
-            onPress: () => {
-              console.log('Navigating to home...');
-              router.push('/home');
-            },
-          },
-          {
-            text: 'Stay Here',
-            style: 'cancel'
-          }
-        ]
-      );
+      // Navigate to main app after successful connection
+      router.replace('/home');
     } catch (error) {
       console.error('Wallet connection failed:', error);
       
@@ -298,7 +270,6 @@ export default function WelcomeScreen() {
         Alert.alert('Connection Failed', `Failed to connect to wallet: ${errorMessage}`);
       }
     } finally {
-      console.log('Setting isConnecting to false');
       setIsConnecting(false);
     }
   };
@@ -319,10 +290,7 @@ export default function WelcomeScreen() {
     name: wallet.name,
     id: wallet.id,
     isAvailable: wallet.isAvailable,
-    onPress: () => {
-      console.log(`Wallet ${wallet.name} (${wallet.id}) button pressed`);
-      handleWalletConnect(wallet.id);
-    },
+    onPress: () => handleWalletConnect(wallet.id),
   }));
 
   return (
@@ -376,41 +344,16 @@ export default function WelcomeScreen() {
                   </Text>
 
                   {connectedAddress ? (
-                    <View>
-                      {/* Continue to App Button */}
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.connectButton,
-                          pressed && styles.connectButtonPressed,
-                        ]}
-                        onPress={() => {
-                          console.log('Manual navigation to home...');
-                          router.push('/home');
-                        }}
-                      >
-                        <LinearGradient
-                          colors={['#4CAF50', '#45A049']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.gradient}
-                        >
-                          <Text style={styles.connectButtonText}>
-                            Continue to App
-                          </Text>
-                        </LinearGradient>
-                      </Pressable>
-                      
-                      {/* Disconnect Button */}
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.disconnectButton,
-                          pressed && styles.disconnectButtonPressed,
-                        ]}
-                        onPress={handleDisconnect}
-                      >
-                        <Text style={styles.disconnectButtonText}>Disconnect Wallet</Text>
-                      </Pressable>
-                    </View>
+                    /* Disconnect Button */
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.disconnectButton,
+                        pressed && styles.disconnectButtonPressed,
+                      ]}
+                      onPress={handleDisconnect}
+                    >
+                      <Text style={styles.disconnectButtonText}>Disconnect Wallet</Text>
+                    </Pressable>
                   ) : (
                     /* Connect Wallet Button */
                     <Pressable
@@ -419,12 +362,7 @@ export default function WelcomeScreen() {
                         pressed && styles.connectButtonPressed,
                         isConnecting && styles.connectButtonDisabled,
                       ]}
-                      onPress={() => {
-                        console.log('Connect Wallet button pressed');
-                        console.log('Current modalVisible state:', modalVisible);
-                        console.log('Setting modal visible to true...');
-                        setModalVisible(true);
-                      }}
+                      onPress={() => setModalVisible(true)}
                       disabled={isConnecting}
                     >
                       <LinearGradient
@@ -479,10 +417,7 @@ export default function WelcomeScreen() {
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          console.log('Modal onRequestClose called');
-          setModalVisible(false);
-        }}
+        onRequestClose={() => setModalVisible(false)}
       >
         <ConditionalBlurView 
           intensity={30} 
@@ -494,10 +429,7 @@ export default function WelcomeScreen() {
             {/* Close Button */}
             <Pressable
               style={styles.closeButton}
-              onPress={() => {
-                console.log('Close button pressed');
-                setModalVisible(false);
-              }}
+              onPress={() => setModalVisible(false)}
             >
               <ConditionalBlurView 
                 intensity={20} 
@@ -518,9 +450,6 @@ export default function WelcomeScreen() {
             >
               <View style={styles.modalCardContent}>
                 <Text style={styles.modalTitle}>Connect a Wallet</Text>
-                <Text style={{color: 'red', fontSize: 12, textAlign: 'center', marginBottom: 10}}>
-                  DEBUG: Modal is open - wallets available: {walletOptions.length}
-                </Text>
 
                 {/* Wallet Options Grid */}
                 <View style={styles.walletGrid}>
@@ -533,12 +462,8 @@ export default function WelcomeScreen() {
                         pressed && wallet.isAvailable && styles.walletButtonPressed,
                       ]}
                       onPress={() => {
-                        console.log(`Pressable onPress called for wallet: ${wallet.name}`);
                         if (wallet.isAvailable) {
-                          console.log(`Wallet ${wallet.name} is available, calling onPress`);
                           wallet.onPress();
-                        } else {
-                          console.log(`Wallet ${wallet.name} is not available`);
                         }
                       }}
                       disabled={!wallet.isAvailable || isConnecting}
@@ -694,6 +619,9 @@ const styles = StyleSheet.create({
   connectButtonPressed: {
     transform: [{ scale: 0.98 }],
   },
+  connectButtonDisabled: {
+    opacity: 0.7,
+  },
   gradient: {
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -704,9 +632,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
-  },
-  connectButtonDisabled: {
-    opacity: 0.7,
   },
   disconnectButton: {
     borderRadius: 12,
@@ -887,18 +812,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#33312E',
   },
-  connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  connectionStatusText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
   walletButtonDisabled: {
     opacity: 0.5,
   },
@@ -921,10 +834,5 @@ const styles = StyleSheet.create({
     color: '#4A90E2',
     marginTop: 2,
     fontWeight: '600',
-  },
-  connectingText: {
-    fontSize: 10,
-    color: '#6B6864',
-    marginTop: 2,
   },
 });
