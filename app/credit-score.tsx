@@ -47,7 +47,7 @@ export default function CreditScoreScreen() {
   };
 
   const creditScore = {
-    score: 751,
+    score: 575,
     rating: 'Moderate',
     percentile: 45,
   };
