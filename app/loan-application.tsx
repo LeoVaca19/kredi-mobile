@@ -15,6 +15,11 @@ import {
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
+// Global type declaration for temporary data storage
+declare global {
+  var newLoanApplication: any;
+}
+
 export default function LoanApplicationScreen() {
   const { getUserData, isConnected } = useUser();
   const userData = getUserData();
@@ -66,6 +71,7 @@ export default function LoanApplicationScreen() {
     
     // Prepare loan application data
     const loanApplicationData = {
+      id: Date.now().toString(), // Simple ID generation
       amount: parseFloat(loanAmount),
       purpose,
       paymentDeadline: selectedDate,
@@ -73,6 +79,7 @@ export default function LoanApplicationScreen() {
       dataAnalysisConsent: dataConsent,
       termsAccepted,
       submittedAt: new Date().toISOString(),
+      status: 'pending',
       // Include user wallet information
       userWallet: {
         publicKey: userData.publicKey,
@@ -85,17 +92,20 @@ export default function LoanApplicationScreen() {
       // TODO: Submit data to MongoDB
       await submitLoanApplicationToMongoDB(loanApplicationData);
       
+      // Store the loan application data temporarily (in a real app, this would be in persistent storage)
+      global.newLoanApplication = loanApplicationData;
+      
       // If data consent is given, navigate to analysis loading screen
       if (dataConsent) {
         router.navigate('data-analysis-loading' as any);
       } else {
-        // If no data consent, show simple success message
-        Alert.alert(
-          'Application Submitted',
-          `Your loan application has been submitted successfully!\nPayment deadline: ${selectedDate}\nDays to pay: ${daysToPayment} days`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
+        // If no data consent, go directly to credit score screen
+        router.push({
+          pathname: '/credit-score',
+          params: { newApplication: 'true' }
+        });
       }
+      
     } catch (error) {
       Alert.alert('Error', 'Failed to submit application. Please try again.');
       console.error('Loan application submission error:', error);

@@ -1,10 +1,11 @@
 import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Clipboard,
   FlatList,
   Pressable,
@@ -13,14 +14,18 @@ import {
   StyleSheet,
   Text,
   View,
-  Animated,
 } from 'react-native';
-import Svg, { Circle, Path, G, Text as SvgText, Line } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path } from 'react-native-svg';
+
+// Global type declaration for temporary data storage
+declare global {
+  var newLoanApplication: any;
+}
 
 interface LoanHistoryItem {
   id: string;
   amount: number;
-  status: 'completed' | 'active' | 'overdue';
+  status: 'completed' | 'active' | 'overdue' | 'pending';
   purpose: string;
   startDate: string;
   endDate: string;
@@ -31,7 +36,9 @@ interface LoanHistoryItem {
 export default function CreditScoreScreen() {
   const { getUserData, isConnected } = useUser();
   const userData = getUserData();
+  const params = useLocalSearchParams();
   const [showAllLoans, setShowAllLoans] = useState(false);
+  const [loanHistory, setLoanHistory] = useState<LoanHistoryItem[]>([]);
 
   // Redirect to index if not connected
   if (!isConnected || !userData) {
@@ -47,63 +54,37 @@ export default function CreditScoreScreen() {
   };
 
   const creditScore = {
-    score: 565,
-    rating: 'Moderate',
-    percentile: 45,
+    score: 0,
+    rating: 'New Account',
+    percentile: 0,
   };
 
-  const loanHistory: LoanHistoryItem[] = [
-    {
-      id: '1',
-      amount: 500,
-      status: 'completed',
-      purpose: 'Small Business',
-      startDate: '2024-12-01',
-      endDate: '2024-12-15',
-      daysToComplete: 14,
-      interestRate: 5.5,
-    },
-    {
-      id: '2',
-      amount: 300,
-      status: 'completed',
-      purpose: 'Education',
-      startDate: '2024-11-10',
-      endDate: '2024-11-20',
-      daysToComplete: 10,
-      interestRate: 4.2,
-    },
-    {
-      id: '3',
-      amount: 750,
-      status: 'active',
-      purpose: 'Emergency Fund',
-      startDate: '2024-12-20',
-      endDate: '2025-01-05',
-      daysToComplete: 16,
-      interestRate: 6.0,
-    },
-    {
-      id: '4',
-      amount: 200,
-      status: 'completed',
-      purpose: 'Equipment Purchase',
-      startDate: '2024-10-15',
-      endDate: '2024-10-22',
-      daysToComplete: 7,
-      interestRate: 3.8,
-    },
-    {
-      id: '5',
-      amount: 450,
-      status: 'overdue',
-      purpose: 'Medical Expenses',
-      startDate: '2024-11-25',
-      endDate: '2024-12-10',
-      daysToComplete: 15,
-      interestRate: 7.5,
-    },
-  ];
+  // Initialize loan history - start with empty array for new accounts
+  useEffect(() => {
+    const initialLoans: LoanHistoryItem[] = []; // Start with no loans for new account
+
+    // Check if there's a new loan application
+    if (params.newApplication === 'true' && global.newLoanApplication) {
+      const newLoan: LoanHistoryItem = {
+        id: global.newLoanApplication.id,
+        amount: global.newLoanApplication.amount,
+        status: 'pending',
+        purpose: global.newLoanApplication.purpose,
+        startDate: global.newLoanApplication.submittedAt,
+        endDate: global.newLoanApplication.paymentDeadline,
+        daysToComplete: global.newLoanApplication.daysToPayment,
+        interestRate: 6.0, // Default interest rate for new applications
+      };
+      
+      // Add new loan to the beginning of the array
+      setLoanHistory([newLoan, ...initialLoans]);
+      
+      // Clear the global variable to prevent duplicates
+      global.newLoanApplication = null;
+    } else {
+      setLoanHistory(initialLoans);
+    }
+  }, [params.newApplication]);
 
   // Get loans to display based on showAllLoans state
   const displayedLoans = showAllLoans ? loanHistory : loanHistory.slice(0, 1);
@@ -122,6 +103,8 @@ export default function CreditScoreScreen() {
         return '#4A90E2';
       case 'overdue':
         return '#FF3B30';
+      case 'pending':
+        return '#FF9500';
       default:
         return '#6B6864';
     }
@@ -135,6 +118,8 @@ export default function CreditScoreScreen() {
         return 'time';
       case 'overdue':
         return 'warning';
+      case 'pending':
+        return 'hourglass';
       default:
         return 'help-circle';
     }
@@ -174,16 +159,19 @@ export default function CreditScoreScreen() {
     // Calculate angle for needle (180 degrees semicircle)
     const minScore = 300;
     const maxScore = 850;
-    const normalizedScore = Math.max(minScore, Math.min(maxScore, score));
+    const normalizedScore = Math.max(minScore, Math.min(maxScore, score === 0 ? 300 : score)); // If score is 0, show at minimum position
     const scorePercent = (normalizedScore - minScore) / (maxScore - minScore);
     const needleAngle = scorePercent * 180 - 90; // -90 to start from left
     
-    // Get current score color
+    // Get current score color - special handling for score 0
     const getCurrentRange = (currentScore: number) => {
+      if (currentScore === 0) {
+        return { min: 0, max: 0, color: '#8B0000', label: 'New Account' }; // Use ultra low color for score 0
+      }
       return ranges.find(range => currentScore >= range.min && currentScore <= range.max) || ranges[0];
     };
     
-    const currentRange = getCurrentRange(normalizedScore);
+    const currentRange = getCurrentRange(score);
     
     // Animation effect
     useEffect(() => {
@@ -242,10 +230,10 @@ export default function CreditScoreScreen() {
       return segments;
     };
     
-    // Create animated needle
+    // Create animated needle - special handling for score 0
     const animatedNeedleAngle = animatedValue.interpolate({
       inputRange: [0, 1],
-      outputRange: [-90, needleAngle],
+      outputRange: [-90, score === 0 ? -90 : needleAngle], // Keep needle at start for score 0
     });
     
     return (
@@ -402,7 +390,7 @@ export default function CreditScoreScreen() {
             </View>
           </View>
 
-          {/* Circular Progress */}
+          {/* Speedometer Gauge */}
           <View style={styles.scoreContainer}>
             <SpeedometerGauge score={creditScore.score} />
           </View>
@@ -428,22 +416,44 @@ export default function CreditScoreScreen() {
               </Pressable>
             )}
           </View>
-          <FlatList
-            data={displayedLoans}
-            renderItem={renderLoanItem}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.loanHistoryList}
-          />
-          {showAllLoans && (
-            <Pressable 
-              style={styles.viewLessButton}
-              onPress={() => setShowAllLoans(false)}
-            >
-              <Text style={styles.viewLessText}>View Less</Text>
-              <Ionicons name="chevron-up" size={16} color="#4A90E2" />
-            </Pressable>
+          
+          {loanHistory.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <View style={styles.emptyStateIcon}>
+                <Ionicons name="document-text-outline" size={48} color="#B8860B" />
+              </View>
+              <Text style={styles.emptyStateTitle}>You don't have any loans in your history</Text>
+              <Text style={styles.emptyStateSubtitle}>
+                Start by applying for your first loan to build your credit history and unlock better rates.
+              </Text>
+              <Pressable 
+                style={styles.applyLoanButton}
+                onPress={() => router.push('/app-requirements')}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.applyLoanButtonText}>Apply for Loan</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <FlatList
+                data={displayedLoans}
+                renderItem={renderLoanItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.loanHistoryList}
+              />
+              {showAllLoans && (
+                <Pressable 
+                  style={styles.viewLessButton}
+                  onPress={() => setShowAllLoans(false)}
+                >
+                  <Text style={styles.viewLessText}>View Less</Text>
+                  <Ionicons name="chevron-up" size={16} color="#4A90E2" />
+                </Pressable>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -719,5 +729,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4A90E2',
     fontWeight: '600',
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  emptyStateIcon: {
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#33312E',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: '#6B6864',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  applyLoanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#4A90E2',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  applyLoanButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

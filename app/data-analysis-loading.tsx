@@ -3,13 +3,13 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 export default function DataAnalysisLoadingScreen() {
@@ -21,9 +21,12 @@ export default function DataAnalysisLoadingScreen() {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          // Auto-redirect to home when 100% complete
+          // Auto-redirect to credit score when 100% complete to show the new loan
           setTimeout(() => {
-            router.replace('/home');
+            router.replace({
+              pathname: '/credit-score',
+              params: { newApplication: 'true' }
+            });
           }, 1500); // Wait 1.5 seconds after completion
           return 100;
         }
@@ -35,7 +38,10 @@ export default function DataAnalysisLoadingScreen() {
   }, []);
 
   const handleGoHome = () => {
-    router.replace('/home');
+    router.replace({
+      pathname: '/credit-score',
+      params: { newApplication: 'true' }
+    });
   };
 
   return (
@@ -112,7 +118,7 @@ export default function DataAnalysisLoadingScreen() {
           style={styles.homeButton}
           onPress={handleGoHome}
         >
-          <Text style={styles.homeButtonText}>Return to Home</Text>
+          <Text style={styles.homeButtonText}>View Credit Score</Text>
         </Pressable>
         
         <Text style={styles.footerText}>

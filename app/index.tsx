@@ -60,12 +60,12 @@ export default function WelcomeScreen() {
 
   const handleConnect = async () => {
     if (!publicKey.trim()) {
-      Alert.alert('Error', 'Por favor ingresa una dirección pública de Stellar');
+      Alert.alert('Error', 'Please enter a Stellar public address');
       return;
     }
 
     if (!isValidStellarAddress(publicKey.trim())) {
-      Alert.alert('Error', 'La dirección pública no es válida. Debe comenzar con "G" y tener 56 caracteres.');
+      Alert.alert('Error', 'The public address is not valid. It must start with "G" and have 56 characters.');
       return;
     }
 
@@ -75,7 +75,7 @@ export default function WelcomeScreen() {
       // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('✅ Conectado con dirección:', publicKey.trim());
+      console.log('✅ Connected with address:', publicKey.trim());
       
       // Save to global context
       setGlobalPublicKey(publicKey.trim());
@@ -104,14 +104,14 @@ export default function WelcomeScreen() {
         const clipboardText = await Clipboard.getString();
         if (clipboardText && isValidStellarAddress(clipboardText.trim())) {
           setPublicKey(clipboardText.trim());
-          Alert.alert('Éxito', 'Dirección pública pegada desde el portapapeles');
+          Alert.alert('Success', 'Public address pasted from clipboard');
         } else {
-          Alert.alert('Error', 'El contenido del portapapeles no es una dirección Stellar válida');
+          Alert.alert('Error', 'The clipboard content is not a valid Stellar address');
         }
       } else {
         Alert.alert(
-          'Pegar desde portapapeles', 
-          'Usa Ctrl+V para pegar tu dirección pública de Stellar en el campo de texto.',
+          'Paste from clipboard', 
+          'Use Ctrl+V to paste your Stellar public address in the text field.',
           [{ text: 'OK' }]
         );
       }
@@ -127,8 +127,8 @@ export default function WelcomeScreen() {
 
   const openQRScanner = () => {
     Alert.alert(
-      'Escáner QR', 
-      'El escáner QR se implementará en una futura versión. Por ahora, puedes pegar tu dirección manualmente.',
+      'QR Scanner', 
+      'QR scanner will be implemented in a future version. For now, you can paste your address manually.',
       [{ text: 'OK' }]
     );
   };
@@ -348,8 +348,8 @@ export default function WelcomeScreen() {
                 {connectionSuccess && (
                   <View style={styles.successMessage}>
                     <Ionicons name="checkmark-circle" size={24} color="#50E3C2" />
-                    <Text style={styles.successText}>¡Conexión exitosa!</Text>
-                    <Text style={styles.successSubtext}>Redirigiendo...</Text>
+                    <Text style={styles.successText}>Connection successful!</Text>
+                    <Text style={styles.successSubtext}>Redirecting...</Text>
                   </View>
                 )}
 
