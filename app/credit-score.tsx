@@ -67,7 +67,7 @@ export default function CreditScoreScreen() {
     if (params.newApplication === 'true' && global.newLoanApplication) {
       const newLoan: LoanHistoryItem = {
         id: global.newLoanApplication.id,
-        amount: global.newLoanApplication.amount,
+        amount: global.newLoanApplication.loanAmount,
         status: 'pending',
         purpose: global.newLoanApplication.purpose,
         startDate: global.newLoanApplication.submittedAt,
@@ -316,7 +316,7 @@ export default function CreditScoreScreen() {
     <View style={styles.loanCard}>
       <View style={styles.loanHeader}>
         <View style={styles.loanInfo}>
-          <Text style={styles.loanAmount}>${item.amount.toFixed(2)}</Text>
+          <Text style={styles.loanAmount}>${(item.amount || 0).toFixed(2)}</Text>
           <Text style={styles.loanPurpose}>{item.purpose}</Text>
         </View>
         <View style={[styles.statusContainer, { backgroundColor: `${getStatusColor(item.status)}20` }]}>

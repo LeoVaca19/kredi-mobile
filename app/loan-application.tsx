@@ -4,14 +4,14 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -28,6 +28,11 @@ export default function LoanApplicationScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [dataConsent, setDataConsent] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // Credit limits and fees
+  const MAX_CREDIT_LIMIT = 100;
+  const STATIC_FEE = 2; // Static $2 fee
+  const COLLATERAL_PERCENTAGE = 20; // 20%
 
   // Redirect to index if not connected
   if (!isConnected || !userData) {
@@ -54,6 +59,40 @@ export default function LoanApplicationScreen() {
     return diffDays;
   };
 
+  // Calculate fee amount (static $2)
+  const calculateFee = (amount: number) => {
+    return STATIC_FEE;
+  };
+
+  // Calculate collateral amount
+  const calculateCollateral = (amount: number) => {
+    return (amount * COLLATERAL_PERCENTAGE) / 100;
+  };
+
+  // Calculate upfront fee payment (just the $2 fee)
+  const calculateUpfrontPayment = (amount: number) => {
+    return calculateFee(amount); // Only the $2 fee
+  };
+
+  // Calculate total amount to pay back (full loan amount)
+  const calculateTotalPayback = (amount: number) => {
+    return amount; // User must pay back the full loan amount
+  };
+
+  // Calculate amount user receives (full loan amount)
+  const calculateAmountReceived = (amount: number) => {
+    return amount; // User receives the full $100
+  };
+
+  // Validate loan amount
+  const validateLoanAmount = (amount: string) => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return false;
+    if (numAmount <= 0) return false;
+    if (numAmount > MAX_CREDIT_LIMIT) return false;
+    return true;
+  };
+
   // Handle preset payment periods
   const handlePresetPeriod = (days: number) => {
     const targetDate = new Date();
@@ -67,12 +106,31 @@ export default function LoanApplicationScreen() {
       return;
     }
 
+    // Validate loan amount
+    if (!validateLoanAmount(loanAmount)) {
+      Alert.alert('Error', `Loan amount must be between $1 and $${MAX_CREDIT_LIMIT}.`);
+      return;
+    }
+
     const daysToPayment = calculateDaysFromToday(selectedDate);
+    const loanAmountNum = parseFloat(loanAmount);
+    const feeAmount = calculateFee(loanAmountNum);
+    const collateralAmount = calculateCollateral(loanAmountNum);
+    const upfrontPayment = calculateUpfrontPayment(loanAmountNum);
+    const totalPayback = calculateTotalPayback(loanAmountNum);
+    const amountReceived = calculateAmountReceived(loanAmountNum);
     
     // Prepare loan application data
     const loanApplicationData = {
       id: Date.now().toString(), // Simple ID generation
-      amount: parseFloat(loanAmount),
+      loanAmount: loanAmountNum,
+      amountReceived,
+      feeAmount,
+      collateralAmount,
+      upfrontPayment,
+      totalPayback,
+      staticFee: STATIC_FEE,
+      collateralPercentage: COLLATERAL_PERCENTAGE,
       purpose,
       paymentDeadline: selectedDate,
       daysToPayment,
@@ -189,6 +247,7 @@ export default function LoanApplicationScreen() {
           {/* Loan Amount */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Loan Amount (USD)</Text>
+            <Text style={styles.helperText}>Maximum credit limit: ${MAX_CREDIT_LIMIT}</Text>
             <View style={styles.inputContainer}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
@@ -198,8 +257,52 @@ export default function LoanApplicationScreen() {
                 placeholder="0.00"
                 placeholderTextColor="#A0A0A0"
                 keyboardType="numeric"
+                maxLength={6}
               />
             </View>
+            
+            {/* Loan Calculation Summary */}
+            {loanAmount && validateLoanAmount(loanAmount) && (
+              <View style={styles.calculationSummary}>
+                <Text style={styles.calculationTitle}>Loan Structure</Text>
+                <View style={styles.calculationRow}>
+                  <Text style={styles.calculationLabel}>Requested Amount:</Text>
+                  <Text style={styles.calculationValue}>${parseFloat(loanAmount).toFixed(2)}</Text>
+                </View>
+                <View style={styles.calculationRow}>
+                  <Text style={styles.calculationLabel}>Processing Fee:</Text>
+                  <Text style={styles.calculationValue}>${calculateFee(parseFloat(loanAmount)).toFixed(2)}</Text>
+                </View>
+                <View style={styles.calculationRow}>
+                  <Text style={styles.calculationLabel}>Collateral (Frozen):</Text>
+                  <Text style={styles.calculationValue}>${calculateCollateral(parseFloat(loanAmount)).toFixed(2)}</Text>
+                </View>
+                <View style={[styles.calculationRow, styles.receivedRow]}>
+                  <Text style={styles.receivedLabel}>You Receive:</Text>
+                  <Text style={styles.receivedValue}>${calculateAmountReceived(parseFloat(loanAmount)).toFixed(2)}</Text>
+                </View>
+                <View style={[styles.calculationRow, styles.totalRow]}>
+                  <Text style={styles.totalLabel}>You Must Repay:</Text>
+                  <Text style={styles.totalValue}>${calculateTotalPayback(parseFloat(loanAmount)).toFixed(2)}</Text>
+                </View>
+                <View style={styles.noteContainer}>
+                  <Text style={styles.noteText}>
+                    💡 You receive the full amount and pay a one-time ${STATIC_FEE} processing fee. 
+                    {COLLATERAL_PERCENTAGE}% collateral is frozen as security and returned when you repay.
+                  </Text>
+                </View>
+              </View>
+            )}
+            
+            {/* Error message for invalid amount */}
+            {loanAmount && !validateLoanAmount(loanAmount) && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="warning" size={16} color="#FF3B30" />
+                <Text style={styles.errorText}>
+                  Amount must be between $1 and ${MAX_CREDIT_LIMIT}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Purpose of Loan */}
@@ -580,5 +683,100 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B6864',
     fontWeight: '400',
+  },
+  calculationSummary: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  calculationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#33312E',
+    marginBottom: 12,
+  },
+  calculationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  calculationLabel: {
+    fontSize: 14,
+    color: '#6B6864',
+    fontWeight: '500',
+  },
+  calculationValue: {
+    fontSize: 14,
+    color: '#33312E',
+    fontWeight: '600',
+  },
+  receivedRow: {
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    marginBottom: 8,
+  },
+  receivedLabel: {
+    fontSize: 16,
+    color: '#4A90E2',
+    fontWeight: '700',
+  },
+  receivedValue: {
+    fontSize: 16,
+    color: '#4A90E2',
+    fontWeight: '700',
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+    paddingTop: 12,
+    marginTop: 8,
+    marginBottom: 0,
+  },
+  totalLabel: {
+    fontSize: 16,
+    color: '#33312E',
+    fontWeight: '700',
+  },
+  totalValue: {
+    fontSize: 16,
+    color: '#FF6B35',
+    fontWeight: '700',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#FF3B30',
+    fontWeight: '500',
+    flex: 1,
+  },
+  noteContainer: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A90E2',
+  },
+  noteText: {
+    fontSize: 12,
+    color: '#6B6864',
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
 });
