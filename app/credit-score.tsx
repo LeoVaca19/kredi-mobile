@@ -15,7 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Circle, G, Line, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 // Global type declaration for temporary data storage
 declare global {
@@ -134,50 +134,44 @@ export default function CreditScoreScreen() {
     });
   };
 
-  // Speedometer gauge component
+    // Speedometer gauge component
   const SpeedometerGauge = ({ score }: { score: number }) => {
     const animatedValue = useRef(new Animated.Value(0)).current;
     const [displayScore, setDisplayScore] = useState(0);
     
-    const size = 180;
-    const strokeWidth = 20;
+    const size = 220;
+    const strokeWidth = 16;
     const radius = (size - strokeWidth) / 2;
     const centerX = size / 2;
     const centerY = size / 2;
     
-    // Score ranges and colors (matching the reference image)
+    // Score ranges and colors
     const ranges = [
-      { min: 300, max: 379, color: '#8B0000', label: 'Ultra Low' },      // Dark red
-      { min: 380, max: 459, color: '#DC143C', label: 'Very Low' },       // Red
-      { min: 460, max: 539, color: '#FF4500', label: 'Low' },            // Orange-red
-      { min: 540, max: 619, color: '#FF8C00', label: 'Moderate' },       // Orange
-      { min: 620, max: 699, color: '#FFD700', label: 'High' },           // Gold/Yellow
-      { min: 700, max: 779, color: '#ADFF2F', label: 'Very High' },      // Green-yellow
-      { min: 780, max: 850, color: '#32CD32', label: 'Ultra High' }      // Green
+      { min: 300, max: 379, color: '#8B0000', label: 'Very Poor' },      // Dark red
+      { min: 380, max: 459, color: '#DC143C', label: 'Poor' },           // Red
+      { min: 460, max: 539, color: '#FF4500', label: 'Fair' },           // Orange-red
+      { min: 540, max: 619, color: '#FF8C00', label: 'Good' },           // Orange
+      { min: 620, max: 699, color: '#FFD700', label: 'Very Good' },      // Gold/Yellow
+      { min: 700, max: 779, color: '#ADFF2F', label: 'Excellent' },      // Green-yellow
+      { min: 780, max: 850, color: '#32CD32', label: 'Exceptional' }     // Green
     ];
     
-    // Calculate angle for needle (180 degrees semicircle)
     const minScore = 300;
     const maxScore = 850;
-    const normalizedScore = Math.max(minScore, Math.min(maxScore, score === 0 ? 300 : score)); // If score is 0, show at minimum position
-    const scorePercent = (normalizedScore - minScore) / (maxScore - minScore);
-    const needleAngle = scorePercent * 180 - 90; // -90 to start from left
+    const normalizedScore = Math.max(minScore, Math.min(maxScore, score));
     
-    // Get current score color - special handling for score 0
+    // Get current score color and range
     const getCurrentRange = (currentScore: number) => {
-      if (currentScore === 0) {
-        return { min: 0, max: 0, color: '#8B0000', label: 'New Account' }; // Use ultra low color for score 0
-      }
       return ranges.find(range => currentScore >= range.min && currentScore <= range.max) || ranges[0];
     };
     
-    const currentRange = getCurrentRange(score);
+    const currentRange = getCurrentRange(normalizedScore);
     
     // Animation effect
     useEffect(() => {
       const animation = Animated.timing(animatedValue, {
         toValue: 1,
-        duration: 2000,
+        duration: 2500,
         useNativeDriver: false,
       });
       
@@ -193,27 +187,31 @@ export default function CreditScoreScreen() {
       };
     }, [score]);
     
-    // Create gauge segments
-    const createGaugeSegments = () => {
+    // Create gauge arc path
+    const createGaugeArc = () => {
       const segments: React.ReactElement[] = [];
-      const totalAngle = 180; // Complete semicircle
-      const segmentAngle = totalAngle / ranges.length;
+      const totalAngle = 180; // Semicircle
+      const segmentAngle = totalAngle / ranges.length; // Equal segments for each color range
       
       ranges.forEach((range, index) => {
-        const startAngle = -90 + (index * segmentAngle); // Start from left (-90°)
-        const endAngle = startAngle + segmentAngle;
+        // Calculate start angle - colors go from 360° (red) to 180° (green)
+        // Each segment gets equal angular space (180° / 7 = ~25.7° each)
+        const startAngle = 360 - (index * segmentAngle);
+        const endAngle = startAngle - segmentAngle;
         
+        // Convert to radians
         const startAngleRad = (startAngle * Math.PI) / 180;
         const endAngleRad = (endAngle * Math.PI) / 180;
         
-        const largeArcFlag = segmentAngle > 180 ? 1 : 0;
-        
+        // Calculate arc points
         const x1 = centerX + radius * Math.cos(startAngleRad);
         const y1 = centerY + radius * Math.sin(startAngleRad);
         const x2 = centerX + radius * Math.cos(endAngleRad);
         const y2 = centerY + radius * Math.sin(endAngleRad);
         
-        const pathData = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`;
+        const largeArcFlag = segmentAngle > 180 ? 1 : 0;
+        
+        const pathData = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${x2} ${y2}`;
         
         segments.push(
           <Path
@@ -222,7 +220,7 @@ export default function CreditScoreScreen() {
             stroke={range.color}
             strokeWidth={strokeWidth}
             fill="none"
-            strokeLinecap="round"
+            strokeLinecap="butt"
           />
         );
       });
@@ -230,79 +228,94 @@ export default function CreditScoreScreen() {
       return segments;
     };
     
-    // Create animated needle - special handling for score 0
-    const animatedNeedleAngle = animatedValue.interpolate({
+    // Calculate needle position - needle goes from 90° to 270°
+    const scorePercent = (normalizedScore - minScore) / (maxScore - minScore);
+    const needleAngle = 90 - (scorePercent * 180); // 90° (top) to 270° (bottom)
+    
+    // Calculate needle position with animation - needle goes from 90° to 270°
+    const animatedAngle = animatedValue.interpolate({
       inputRange: [0, 1],
-      outputRange: [-90, score === 0 ? -90 : needleAngle], // Keep needle at start for score 0
+      outputRange: [90, needleAngle], // Start from 90° (top) and move to score position
     });
+    
+    // Calculate needle end position
+    const needleLength = radius - 10;
     
     return (
       <View style={styles.speedometerContainer}>
-        <Svg width={size} height={size * 0.7}>
-          <G>
-            {/* Gauge segments */}
-            {createGaugeSegments()}
+        <Svg width={size} height={size * 0.65}>
+          {/* Background arc - from 360° to 180° (top semicircle) */}
+          <Path
+            d={`M ${centerX + radius} ${centerY} A ${radius} ${radius} 0 0 0 ${centerX - radius} ${centerY}`}
+            stroke="#E5E5E5"
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          
+          {/* Colored gauge segments */}
+          {createGaugeArc()}
+          
+          {/* Score markers - aligned with color segments */}
+          {Array.from({ length: ranges.length + 1 }, (_, index) => {
+            // Create markers at the boundaries of each color segment
+            const segmentAngle = 180 / ranges.length; // Equal segments
+            const markerAngle = 360 - (index * segmentAngle); // 360°, ~334°, ~309°, ~283°, ~257°, ~231°, ~206°, 180°
+            const markerAngleRad = (markerAngle * Math.PI) / 180;
             
-            {/* Score markers */}
-            {[300, 380, 460, 540, 620, 700, 780, 850].map((markerScore) => {
-              const markerPercent = (markerScore - minScore) / (maxScore - minScore);
-              const markerAngle = markerPercent * 180 - 90; // -90 to start from left
-              const markerAngleRad = (markerAngle * Math.PI) / 180;
-              
-              const innerRadius = radius - strokeWidth / 2 - 8;
-              const outerRadius = radius - strokeWidth / 2 + 8;
-              
-              const x1 = centerX + innerRadius * Math.cos(markerAngleRad);
-              const y1 = centerY + innerRadius * Math.sin(markerAngleRad);
-              const x2 = centerX + outerRadius * Math.cos(markerAngleRad);
-              const y2 = centerY + outerRadius * Math.sin(markerAngleRad);
-              
-              return (
-                <Line
-                  key={markerScore}
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke="#333"
-                  strokeWidth="2"
-                />
-              );
-            })}
+            const innerRadius = radius - strokeWidth / 2 - 5;
+            const outerRadius = radius - strokeWidth / 2 + 5;
             
-            {/* Needle */}
-            <Animated.View
-              style={{
-                position: 'absolute',
-                left: centerX - 1,
-                top: centerY - radius + strokeWidth,
-                width: 2,
-                height: radius - strokeWidth / 2,
-                backgroundColor: '#333',
-                transformOrigin: '50% 100%',
-                transform: [
-                  {
-                    rotate: animatedNeedleAngle.interpolate({
-                      inputRange: [0, 360],
-                      outputRange: ['0deg', '360deg'],
-                    }),
-                  },
-                ],
-              }}
-            />
+            const x1 = centerX + innerRadius * Math.cos(markerAngleRad);
+            const y1 = centerY + innerRadius * Math.sin(markerAngleRad);
+            const x2 = centerX + outerRadius * Math.cos(markerAngleRad);
+            const y2 = centerY + outerRadius * Math.sin(markerAngleRad);
             
-            {/* Center dot */}
-            <Circle
-              cx={centerX}
-              cy={centerY}
-              r="4"
-              fill="#333"
-            />
-          </G>
+            return (
+              <Line
+                key={index}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="#666"
+                strokeWidth="2"
+              />
+            );
+          })}
+          
+          {/* Animated needle */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              left: centerX - 1.5,
+              top: centerY - needleLength + 6, // Adjust to start from center
+              width: 3,
+              height: needleLength,
+              backgroundColor: '#2C2C2C',
+              transformOrigin: '50% 100%', // Rotate from the bottom (center of circle)
+              borderRadius: 2,
+              transform: [
+                {
+                  rotate: animatedAngle.interpolate({
+                    inputRange: [90, 270],
+                    outputRange: ['90deg', '270deg'],
+                  }),
+                },
+              ],
+            }}
+          />
+          
+          {/* Center circle */}
+          <Circle
+            cx={centerX}
+            cy={centerY}
+            r="6"
+            fill="#2C2C2C"
+          />
         </Svg>
         
         <View style={styles.scoreDisplayContainer}>
-          <Text style={styles.scoreTitle}>This wallet's Credit Score is:</Text>
+          <Text style={styles.scoreTitle}>Credit Score</Text>
           <Text style={[styles.scoreNumber, { color: currentRange.color }]}>
             {displayScore}
           </Text>
@@ -316,7 +329,7 @@ export default function CreditScoreScreen() {
     <View style={styles.loanCard}>
       <View style={styles.loanHeader}>
         <View style={styles.loanInfo}>
-          <Text style={styles.loanAmount}>${(item.amount || 0).toFixed(2)}</Text>
+          <Text style={styles.loanAmount}>${item.amount.toFixed(2)}</Text>
           <Text style={styles.loanPurpose}>{item.purpose}</Text>
         </View>
         <View style={[styles.statusContainer, { backgroundColor: `${getStatusColor(item.status)}20` }]}>
@@ -390,7 +403,7 @@ export default function CreditScoreScreen() {
             </View>
           </View>
 
-          {/* Speedometer Gauge */}
+          {/* Circular Progress */}
           <View style={styles.scoreContainer}>
             <SpeedometerGauge score={creditScore.score} />
           </View>
