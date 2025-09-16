@@ -147,17 +147,17 @@ export default function CreditScoreScreen() {
     
     // Score ranges and colors
     const ranges = [
-      { min: 300, max: 379, color: '#8B0000', label: 'Very Poor' },      // Dark red
-      { min: 380, max: 459, color: '#DC143C', label: 'Poor' },           // Red
-      { min: 460, max: 539, color: '#FF4500', label: 'Fair' },           // Orange-red
-      { min: 540, max: 619, color: '#FF8C00', label: 'Good' },           // Orange
-      { min: 620, max: 699, color: '#FFD700', label: 'Very Good' },      // Gold/Yellow
-      { min: 700, max: 779, color: '#ADFF2F', label: 'Excellent' },      // Green-yellow
-      { min: 780, max: 850, color: '#32CD32', label: 'Exceptional' }     // Green
+      { min: 0, max: 14, color: '#8B0000', label: 'Very Poor' },      // Dark red
+      { min: 15, max: 29, color: '#DC143C', label: 'Poor' },           // Red
+      { min: 30, max: 44, color: '#FF4500', label: 'Fair' },           // Orange-red
+      { min: 45, max: 59, color: '#FF8C00', label: 'Good' },           // Orange
+      { min: 60, max: 74, color: '#FFD700', label: 'Very Good' },      // Gold/Yellow
+      { min: 75, max: 89, color: '#ADFF2F', label: 'Excellent' },      // Green-yellow
+      { min: 90, max: 100, color: '#32CD32', label: 'Exceptional' }     // Green
     ];
-    
-    const minScore = 300;
-    const maxScore = 850;
+
+    const minScore = 0;
+    const maxScore = 100;
     const normalizedScore = Math.max(minScore, Math.min(maxScore, score));
     
     // Get current score color and range
