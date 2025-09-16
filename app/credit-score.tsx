@@ -420,7 +420,7 @@ export default function CreditScoreScreen() {
           {loanHistory.length === 0 ? (
             <View style={styles.emptyStateContainer}>
               <View style={styles.emptyStateIcon}>
-                <Ionicons name="document-text-outline" size={48} color="#B8860B" />
+                <Ionicons name="document-text-outline" size={48} color="#4A90E2" />
               </View>
               <Text style={styles.emptyStateTitle}>You don't have any loans in your history</Text>
               <Text style={styles.emptyStateSubtitle}>
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   },
   walletAddress: {
     fontSize: 16,
-    color: '#B8860B',
+    color: '#4A90E2',
     fontWeight: '500',
   },
   creditScoreSection: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     color: '#33312E',
   },
   ratingBadge: {
-    backgroundColor: 'rgba(52, 199, 89, 0.15)',
+    backgroundColor: 'rgba(74, 144, 226, 0.15)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#34C759',
+    color: '#4A90E2',
   },
   scoreContainer: {
     alignItems: 'center',
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 14,
-    color: '#B8860B',
+    color: '#4A90E2',
     fontWeight: '500',
     marginTop: 4,
   },
