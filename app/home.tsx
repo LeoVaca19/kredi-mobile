@@ -1,3 +1,5 @@
+import { UserHeader } from '@/components/UserHeader';
+import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +17,9 @@ import {
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
+  const { getUserData, isConnected } = useUser();
+  const userData = getUserData();
+
   const handleApplyLoan = () => {
     console.log('Apply for loan pressed');
     router.push('/app-requirements');
@@ -25,22 +30,24 @@ export default function HomeScreen() {
     router.push('/credit-score');
   };
 
+  // Redirect to index if not connected
+  if (!isConnected || !userData) {
+    router.replace('/');
+    return null;
+  }
+
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
+      {/* User Header */}
+      <UserHeader showDisconnect={true} />
+      
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Connected Status */}
-        <View style={styles.statusContainer}>
-          <View style={styles.statusIndicator}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>connected: GURW....SDA</Text>
-          </View>
-        </View>
 
         {/* Main Content */}
         <View style={styles.mainContent}>

@@ -1,11 +1,13 @@
+import { useUser } from '@/contexts/UserContext';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
+  Clipboard,
   Dimensions,
   ImageBackground,
   Modal,
@@ -14,135 +16,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  TextInput,
+  View,
 } from 'react-native';
 
-// LumenKit types and interfaces for React Native
-interface ISupportedWallet {
-  id: string;
-  name: string;
-  isAvailable: boolean;
-  type: string;
-  icon?: string;
-  url?: string;
-}
-
-enum WalletNetwork {
-  MAINNET = 'mainnet',
-  TESTNET = 'testnet',
-  FUTURENET = 'futurenet'
-}
-
-// Simplified StellarWalletsKit for React Native
-class StellarWalletsKit {
-  private network: WalletNetwork;
-  private selectedWalletId: string | null = null;
-  private connectedAddress: string | null = null;
-
-  constructor(config: { network: WalletNetwork; modules?: any[] }) {
-    this.network = config.network;
-  }
-
-  async getSupportedWallets(): Promise<ISupportedWallet[]> {
-    // Return supported wallets for React Native
-    return [
-      {
-        id: 'freighter',
-        name: 'Freighter',
-        isAvailable: true,
-        type: 'hot_wallet',
-        icon: 'https://stellar.creit.tech/wallet-icons/freighter.png',
-        url: 'https://freighter.app',
-      },
-      {
-        id: 'lobstr',
-        name: 'LOBSTR',
-        isAvailable: true,
-        type: 'hot_wallet',
-        icon: 'https://stellar.creit.tech/wallet-icons/lobstr.png',
-        url: 'https://lobstr.co',
-      },
-      {
-        id: 'albedo',
-        name: 'Albedo',
-        isAvailable: true,
-        type: 'hot_wallet',
-        icon: 'https://stellar.creit.tech/wallet-icons/albedo.png',
-        url: 'https://albedo.link',
-      },
-      {
-        id: 'rabet',
-        name: 'Rabet',
-        isAvailable: true,
-        type: 'hot_wallet',
-        icon: 'https://stellar.creit.tech/wallet-icons/rabet.png',
-        url: 'https://rabet.io',
-      },
-      {
-        id: 'xbull',
-        name: 'xBull',
-        isAvailable: true,
-        type: 'hot_wallet',
-        icon: 'https://stellar.creit.tech/wallet-icons/xbull.png',
-        url: 'https://xbull.app',
-      },
-      {
-        id: 'walletconnect',
-        name: 'WalletConnect',
-        isAvailable: true,
-        type: 'wallet_connect',
-        icon: 'https://stellar.creit.tech/wallet-icons/walletconnect.png',
-        url: 'https://walletconnect.com',
-      },
-    ];
-  }
-
-  setWallet(walletId: string): void {
-    this.selectedWalletId = walletId;
-  }
-
-  async getAddress(): Promise<{ address: string }> {
-    if (!this.selectedWalletId) {
-      throw new Error('No wallet selected');
-    }
-
-    // For React Native, we'll simulate getting an address
-    // In a real implementation, you would integrate with actual wallet SDKs
-    const mockAddress = 'G' + 'A'.repeat(55); // Mock Stellar address
-    this.connectedAddress = mockAddress;
-    
-    return { address: mockAddress };
-  }
-
-  async disconnect(): Promise<void> {
-    this.selectedWalletId = null;
-    this.connectedAddress = null;
-  }
-
-  async signTransaction(xdr: string): Promise<{ signedTxXdr: string }> {
-    if (!this.selectedWalletId) {
-      throw new Error('No wallet selected');
-    }
-    
-    // Mock transaction signing
-    return { signedTxXdr: xdr };
-  }
-
-  async getNetwork(): Promise<{ network: string; networkPassphrase: string }> {
-    const passphrases = {
-      [WalletNetwork.MAINNET]: 'Public Global Stellar Network ; September 2015',
-      [WalletNetwork.TESTNET]: 'Test SDF Network ; September 2015',
-      [WalletNetwork.FUTURENET]: 'Test SDF Future Network ; October 2022'
-    };
-
-    return {
-      network: this.network,
-      networkPassphrase: passphrases[this.network]
-    };
-  }
-}
-
 const { width, height } = Dimensions.get('window');
+
+// Simple Stellar address validation
+const isValidStellarAddress = (address: string): boolean => {
+  return /^G[A-Z2-7]{55}$/.test(address);
+};
 
 // Component that conditionally uses BlurView or fallback View
 const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }: {
@@ -169,161 +52,86 @@ const ConditionalBlurView = ({ children, intensity, tint, style, fallbackStyle }
 };
 
 export default function WelcomeScreen() {
+  const { setPublicKey: setGlobalPublicKey } = useUser();
   const [modalVisible, setModalVisible] = useState(false);
-  const [stellarKit, setStellarKit] = useState<StellarWalletsKit | null>(null);
-  const [supportedWallets, setSupportedWallets] = useState<ISupportedWallet[]>([]);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
+  const [publicKey, setPublicKey] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [connectionSuccess, setConnectionSuccess] = useState(false);
 
-  // Initialize LumenKit with real wallet modules
-  useEffect(() => {
-    const initializeLumenKit = async () => {
-      try {
-        // Initialize StellarWalletsKit
-        const kit = new StellarWalletsKit({
-          network: WalletNetwork.TESTNET,
-        });
-
-        // Get supported wallets
-        const wallets = await kit.getSupportedWallets();
-        setSupportedWallets(wallets);
-        setStellarKit(kit);
-
-        console.log('LumenKit initialized successfully with wallets:', wallets);
-      } catch (error) {
-        console.error('Failed to initialize LumenKit:', error);
-        Alert.alert('Error', 'Failed to initialize wallet connection. Using fallback mode.');
-        
-        // Fallback to basic wallet list if LumenKit fails
-        const fallbackWallets: ISupportedWallet[] = [
-          {
-            id: 'freighter',
-            name: 'Freighter',
-            isAvailable: true,
-            type: 'hot_wallet',
-            icon: 'https://stellar.creit.tech/wallet-icons/freighter.png',
-            url: 'https://freighter.app',
-          },
-          {
-            id: 'lobstr',
-            name: 'LOBSTR',
-            isAvailable: true,
-            type: 'hot_wallet',
-            icon: 'https://stellar.creit.tech/wallet-icons/lobstr.png',
-            url: 'https://lobstr.co',
-          },
-          {
-            id: 'albedo',
-            name: 'Albedo',
-            isAvailable: true,
-            type: 'hot_wallet',
-            icon: 'https://stellar.creit.tech/wallet-icons/albedo.png',
-            url: 'https://albedo.link',
-          },
-        ];
-        setSupportedWallets(fallbackWallets);
-      }
-    };
-
-    initializeLumenKit();
-  }, []);
-
-  // Debug modal state
-  useEffect(() => {
-    console.log('Modal visible state changed to:', modalVisible);
-  }, [modalVisible]);
-
-  const handleWalletConnect = async (walletId: string) => {
-    console.log('handleWalletConnect called with:', walletId);
-    
-    if (!stellarKit) {
-      console.log('Stellar kit not initialized');
-      Alert.alert('Error', 'Wallet kit not initialized. Please try again.');
+  const handleConnect = async () => {
+    if (!publicKey.trim()) {
+      Alert.alert('Error', 'Por favor ingresa una dirección pública de Stellar');
       return;
     }
 
-    setIsConnecting(true);
-    console.log('Setting isConnecting to true');
+    if (!isValidStellarAddress(publicKey.trim())) {
+      Alert.alert('Error', 'La dirección pública no es válida. Debe comenzar con "G" y tener 56 caracteres.');
+      return;
+    }
+
+    setConnecting(true);
     
     try {
-      const wallet = supportedWallets.find(w => w.id === walletId);
-      if (!wallet) {
-        throw new Error('Wallet not found');
-      }
-
-      console.log(`Connecting to ${wallet.name}...`);
+      // Simulate connection delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Use LumenKit to connect to the wallet
-      stellarKit.setWallet(walletId);
+      console.log('✅ Conectado con dirección:', publicKey.trim());
       
-      // Get wallet address
-      const { address } = await stellarKit.getAddress();
-      setConnectedAddress(address);
+      // Save to global context
+      setGlobalPublicKey(publicKey.trim());
       
-      console.log('Connected to wallet:', address);
-      console.log('Setting modal visible to false');
+      setConnectionSuccess(true);
       
-      setModalVisible(false);
-      
-      // Show success message instead of auto-navigating
-      Alert.alert(
-        'Wallet Connected!', 
-        `Successfully connected to ${wallet.name}\nAddress: ${address.substring(0, 8)}...${address.substring(-8)}`,
-        [
-          {
-            text: 'Continue to App',
-            onPress: () => {
-              console.log('Navigating to home...');
-              router.push('/home');
-            },
-          },
-          {
-            text: 'Stay Here',
-            style: 'cancel'
-          }
-        ]
-      );
+      // Show success message for 2 seconds, then navigate
+      setTimeout(() => {
+        setModalVisible(false);
+        setConnectionSuccess(false);
+        
+        // Navigate to home (no need to pass params anymore)
+        router.push('/home');
+      }, 2000);
     } catch (error) {
-      console.error('Wallet connection failed:', error);
-      
-      // Handle specific error cases
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorCode = (error as any)?.code;
-      
-      if (errorCode === -3) {
-        Alert.alert('Wallet Not Available', 'This wallet is not installed or not available on your device.');
-      } else if (errorMessage.includes('User rejected')) {
-        Alert.alert('Connection Cancelled', 'Wallet connection was cancelled by user.');
-      } else {
-        Alert.alert('Connection Failed', `Failed to connect to wallet: ${errorMessage}`);
-      }
+      console.error('Error al conectar:', error);
+      Alert.alert('Error', 'No se pudo conectar. Intenta nuevamente.');
     } finally {
-      console.log('Setting isConnecting to false');
-      setIsConnecting(false);
+      setConnecting(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (stellarKit) {
-      try {
-        await stellarKit.disconnect();
-        setConnectedAddress(null);
-        console.log('Wallet disconnected');
-      } catch (error) {
-        console.error('Failed to disconnect wallet:', error);
+  const pasteFromClipboard = async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        const clipboardText = await Clipboard.getString();
+        if (clipboardText && isValidStellarAddress(clipboardText.trim())) {
+          setPublicKey(clipboardText.trim());
+          Alert.alert('Éxito', 'Dirección pública pegada desde el portapapeles');
+        } else {
+          Alert.alert('Error', 'El contenido del portapapeles no es una dirección Stellar válida');
+        }
+      } else {
+        Alert.alert(
+          'Pegar desde portapapeles', 
+          'Usa Ctrl+V para pegar tu dirección pública de Stellar en el campo de texto.',
+          [{ text: 'OK' }]
+        );
       }
+    } catch (error) {
+      console.error('Error accessing clipboard:', error);
+      Alert.alert('Error', 'No se pudo acceder al portapapeles');
     }
   };
 
-  const walletOptions = supportedWallets.map(wallet => ({
-    name: wallet.name,
-    id: wallet.id,
-    isAvailable: wallet.isAvailable,
-    onPress: () => {
-      console.log(`Wallet ${wallet.name} (${wallet.id}) button pressed`);
-      handleWalletConnect(wallet.id);
-    },
-  }));
+  const clearField = () => {
+    setPublicKey('');
+  };
+
+  const openQRScanner = () => {
+    Alert.alert(
+      'Escáner QR', 
+      'El escáner QR se implementará en una futura versión. Por ahora, puedes pegar tu dirección manualmente.',
+      [{ text: 'OK' }]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -365,80 +173,28 @@ export default function WelcomeScreen() {
                 fallbackStyle={styles.loginCardFallback}
               >
                 <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>
-                    {connectedAddress ? 'Connected to Kredi' : 'Connect to Kredi'}
-                  </Text>
+                  <Text style={styles.cardTitle}>Connect to Kredi</Text>
                   <Text style={styles.cardSubtitle}>
-                    {connectedAddress 
-                      ? `Connected with: ${connectedAddress.slice(0, 8)}...${connectedAddress.slice(-8)}`
-                      : 'Secure, self-custodied access to decentralized lending'
-                    }
+                    Secure, self-custodied access to decentralized lending
                   </Text>
 
-                  {connectedAddress ? (
-                    <View>
-                      {/* Continue to App Button */}
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.connectButton,
-                          pressed && styles.connectButtonPressed,
-                        ]}
-                        onPress={() => {
-                          console.log('Manual navigation to home...');
-                          router.push('/home');
-                        }}
-                      >
-                        <LinearGradient
-                          colors={['#4CAF50', '#45A049']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.gradient}
-                        >
-                          <Text style={styles.connectButtonText}>
-                            Continue to App
-                          </Text>
-                        </LinearGradient>
-                      </Pressable>
-                      
-                      {/* Disconnect Button */}
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.disconnectButton,
-                          pressed && styles.disconnectButtonPressed,
-                        ]}
-                        onPress={handleDisconnect}
-                      >
-                        <Text style={styles.disconnectButtonText}>Disconnect Wallet</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    /* Connect Wallet Button */
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.connectButton,
-                        pressed && styles.connectButtonPressed,
-                        isConnecting && styles.connectButtonDisabled,
-                      ]}
-                      onPress={() => {
-                        console.log('Connect Wallet button pressed');
-                        console.log('Current modalVisible state:', modalVisible);
-                        console.log('Setting modal visible to true...');
-                        setModalVisible(true);
-                      }}
-                      disabled={isConnecting}
+                  {/* Connect Wallet Button */}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.connectButton,
+                      pressed && styles.connectButtonPressed,
+                    ]}
+                    onPress={() => setModalVisible(true)}
+                  >
+                    <LinearGradient
+                      colors={['#4A90E2', '#50E3C2']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.gradient}
                     >
-                      <LinearGradient
-                        colors={isConnecting ? ['#ccc', '#ddd'] : ['#4A90E2', '#50E3C2']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.gradient}
-                      >
-                        <Text style={styles.connectButtonText}>
-                          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                        </Text>
-                      </LinearGradient>
-                    </Pressable>
-                  )}
+                      <Text style={styles.connectButtonText}>Connect Wallet</Text>
+                    </LinearGradient>
+                  </Pressable>
 
                   {/* Security Features */}
                   <View style={styles.features}>
@@ -479,10 +235,7 @@ export default function WelcomeScreen() {
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          console.log('Modal onRequestClose called');
-          setModalVisible(false);
-        }}
+        onRequestClose={() => setModalVisible(false)}
       >
         <ConditionalBlurView 
           intensity={30} 
@@ -494,10 +247,7 @@ export default function WelcomeScreen() {
             {/* Close Button */}
             <Pressable
               style={styles.closeButton}
-              onPress={() => {
-                console.log('Close button pressed');
-                setModalVisible(false);
-              }}
+              onPress={() => setModalVisible(false)}
             >
               <ConditionalBlurView 
                 intensity={20} 
@@ -518,78 +268,101 @@ export default function WelcomeScreen() {
             >
               <View style={styles.modalCardContent}>
                 <Text style={styles.modalTitle}>Connect a Wallet</Text>
-                <Text style={{color: 'red', fontSize: 12, textAlign: 'center', marginBottom: 10}}>
-                  DEBUG: Modal is open - wallets available: {walletOptions.length}
-                </Text>
 
-                {/* Wallet Options Grid */}
-                <View style={styles.walletGrid}>
-                  {walletOptions.map((wallet, index) => (
+                {/* Input Section */}
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputLabel}>Enter your Stellar public address</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={publicKey}
+                    onChangeText={setPublicKey}
+                    placeholder="GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    placeholderTextColor="#A0A0A0"
+                    autoCorrect={false}
+                    autoCapitalize="characters"
+                    multiline={false}
+                    maxLength={56}
+                  />
+                  
+                  {/* Action Buttons */}
+                  <View style={styles.actionButtons}>
                     <Pressable
-                      key={index}
                       style={({ pressed }) => [
-                        styles.walletButton,
-                        !wallet.isAvailable && styles.walletButtonDisabled,
-                        pressed && wallet.isAvailable && styles.walletButtonPressed,
+                        styles.actionButton,
+                        pressed && styles.actionButtonPressed,
                       ]}
-                      onPress={() => {
-                        console.log(`Pressable onPress called for wallet: ${wallet.name}`);
-                        if (wallet.isAvailable) {
-                          console.log(`Wallet ${wallet.name} is available, calling onPress`);
-                          wallet.onPress();
-                        } else {
-                          console.log(`Wallet ${wallet.name} is not available`);
-                        }
-                      }}
-                      disabled={!wallet.isAvailable || isConnecting}
+                      onPress={pasteFromClipboard}
                     >
-                      <ConditionalBlurView 
-                        intensity={20} 
-                        style={[
-                          styles.walletButtonBlur,
-                          !wallet.isAvailable && styles.walletButtonBlurDisabled
-                        ]} 
-                        tint="light"
-                        fallbackStyle={[
-                          styles.walletButtonFallback,
-                          !wallet.isAvailable && styles.walletButtonFallbackDisabled
-                        ]}
-                      >
-                        <Text style={[
-                          styles.walletButtonText,
-                          !wallet.isAvailable && styles.walletButtonTextDisabled
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                        {!wallet.isAvailable && (
-                          <Text style={styles.walletUnavailableText}>Not Available</Text>
-                        )}
-                        {isConnecting && wallet.isAvailable && (
-                          <Text style={styles.walletConnectingText}>Connecting...</Text>
-                        )}
-                      </ConditionalBlurView>
+                      <Text style={styles.actionButtonText}>📋 Paste</Text>
                     </Pressable>
-                  ))}
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        pressed && styles.actionButtonPressed,
+                      ]}
+                      onPress={clearField}
+                    >
+                      <Text style={styles.actionButtonText}>🗑️ Clear</Text>
+                    </Pressable>
+                  </View>
                 </View>
 
                 {/* Divider */}
                 <View style={styles.divider} />
 
-                {/* Create New Wallet Button */}
+                {/* QR Scanner Option */}
                 <Pressable
                   style={({ pressed }) => [
-                    styles.createWalletButton,
-                    pressed && styles.createWalletButtonPressed,
+                    styles.qrScannerButton,
+                    pressed && styles.qrScannerButtonPressed,
                   ]}
-                  onPress={() => {
-                    console.log('Create new wallet');
-                    setModalVisible(false);
-                    // Navigate to main app after creating wallet
-                    router.replace('/home');
-                  }}
+                  onPress={openQRScanner}
                 >
-                  <Text style={styles.createWalletButtonText}>Create New Wallet</Text>
+                  <Ionicons name="qr-code-outline" size={24} color="#33312E" />
+                  <Text style={styles.qrScannerButtonText}>Scan QR Code (Coming Soon)</Text>
                 </Pressable>
+
+                {/* Another Divider */}
+                <View style={styles.divider} />
+
+                {/* Connect Button */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalConnectButton,
+                    pressed && styles.modalConnectButtonPressed,
+                    (!publicKey.trim() || connecting) && styles.modalConnectButtonDisabled,
+                  ]}
+                  onPress={handleConnect}
+                  disabled={!publicKey.trim() || connecting}
+                >
+                  <Text style={[
+                    styles.modalConnectButtonText,
+                    (!publicKey.trim() || connecting) && styles.modalConnectButtonTextDisabled,
+                  ]}>
+                    {connecting ? 'Connecting...' : 'Connect'}
+                  </Text>
+                </Pressable>
+
+                {/* Success Message */}
+                {connectionSuccess && (
+                  <View style={styles.successMessage}>
+                    <Ionicons name="checkmark-circle" size={24} color="#50E3C2" />
+                    <Text style={styles.successText}>¡Conexión exitosa!</Text>
+                    <Text style={styles.successSubtext}>Redirigiendo...</Text>
+                  </View>
+                )}
+
+                {/* Instructions */}
+                <View style={styles.instructions}>
+                  <Text style={styles.instructionsTitle}>Where to find your address:</Text>
+                  <Text style={styles.instructionsText}>
+                    • Freighter: Click the copy icon{'\n'}
+                    • LOBSTR: Settings → Account Details{'\n'}
+                    • Rabet: Account → Copy Address{'\n'}
+                    • Albedo: Your address appears on the main page
+                  </Text>
+                </View>
               </View>
             </ConditionalBlurView>
           </View>
@@ -705,27 +478,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  connectButtonDisabled: {
-    opacity: 0.7,
-  },
-  disconnectButton: {
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  disconnectButtonPressed: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-  },
-  disconnectButtonText: {
-    color: '#FF6B6B',
-    fontSize: 16,
-    fontWeight: '700',
-  },
   features: {
     gap: 12,
   },
@@ -827,104 +579,128 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  walletGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+  // New styles for input functionality
+  inputSection: {
     marginBottom: 16,
   },
-  walletButton: {
-    flex: 1,
-    minWidth: '45%',
-    height: 48,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  walletButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  walletButtonBlur: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  walletButtonFallback: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  walletButtonText: {
+  inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#33312E',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#33312E',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 12,
+    minHeight: 48,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  actionButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
+  actionButtonText: {
+    fontSize: 12,
+    color: '#33312E',
+    fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(107, 104, 100, 0.3)',
     marginVertical: 16,
   },
-  createWalletButton: {
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
+  qrScannerButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+    gap: 12,
+    marginBottom: 16,
   },
-  createWalletButtonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  qrScannerButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  createWalletButtonText: {
+  qrScannerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#33312E',
+  },
+  modalConnectButton: {
+    backgroundColor: '#4A90E2',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalConnectButtonPressed: {
+    backgroundColor: '#357ABD',
+  },
+  modalConnectButtonDisabled: {
+    backgroundColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  modalConnectButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalConnectButtonTextDisabled: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  instructions: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 104, 100, 0.3)',
+  },
+  instructionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#33312E',
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 12,
+    color: '#6B6864',
+    lineHeight: 18,
+  },
+  successMessage: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(80, 227, 194, 0.1)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(80, 227, 194, 0.3)',
+    marginBottom: 16,
+    gap: 8,
+  },
+  successText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#33312E',
   },
-  connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  connectionStatusText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  walletButtonDisabled: {
-    opacity: 0.5,
-  },
-  walletButtonBlurDisabled: {
-    backgroundColor: 'rgba(200, 200, 200, 0.5)',
-  },
-  walletButtonFallbackDisabled: {
-    backgroundColor: 'rgba(200, 200, 200, 0.5)',
-  },
-  walletButtonTextDisabled: {
-    color: '#999',
-  },
-  walletUnavailableText: {
-    fontSize: 10,
-    color: '#999',
-    marginTop: 2,
-  },
-  walletConnectingText: {
-    fontSize: 10,
-    color: '#4A90E2',
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  connectingText: {
-    fontSize: 10,
+  successSubtext: {
+    fontSize: 14,
     color: '#6B6864',
-    marginTop: 2,
   },
 });
